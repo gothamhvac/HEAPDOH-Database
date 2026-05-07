@@ -38,7 +38,9 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await fileData.arrayBuffer());
+    console.log("OCR: invoke extractFromInvoice, mime=", attachment.mime_type, "size=", buffer.length);
     const extracted = await extractFromInvoice(buffer, attachment.mime_type || "application/pdf");
+    console.log("OCR: extractFromInvoice returned keys=", Object.keys(extracted));
     const customerData = mapToCustomerData(extracted);
 
     await admin.from("attachments").update({ ocr_status: "done", ocr_raw: extracted }).eq("id", attachment.id);

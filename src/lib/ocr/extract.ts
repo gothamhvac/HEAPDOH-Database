@@ -8,12 +8,18 @@ interface ExtractedData {
 // Run tesseract.js (WASM) on a PNG buffer. Works in serverless runtimes
 // where the system `tesseract` binary isn't installed.
 async function ocrPng(pngBuffer: Buffer): Promise<string> {
+  console.log("OCR: creating tesseract worker");
+  const t0 = Date.now();
   const worker = await createWorker("eng");
+  console.log("OCR: worker ready in", Date.now() - t0, "ms — starting recognize");
   try {
+    const t1 = Date.now();
     const { data } = await worker.recognize(pngBuffer);
+    console.log("OCR: recognize complete in", Date.now() - t1, "ms — text length:", data.text.length);
     return data.text;
   } finally {
     await worker.terminate();
+    console.log("OCR: worker terminated");
   }
 }
 
@@ -50,6 +56,8 @@ export async function extractFromInvoice(
   // Step 1: Render PDF page 1 to high-res PNG (or use the image as-is)
   let pngBuffer: Buffer;
   if (mimeType.includes("pdf")) {
+    console.log("OCR: rendering PDF with mupdf, size =", fileBuffer.length);
+    const t0 = Date.now();
     const doc = mupdf.Document.openDocument(fileBuffer, "application/pdf");
     const page = doc.loadPage(0);
     const pixmap = page.toPixmap(
@@ -57,6 +65,7 @@ export async function extractFromInvoice(
       mupdf.ColorSpace.DeviceRGB
     );
     pngBuffer = Buffer.from(pixmap.asPNG());
+    console.log("OCR: mupdf rendered PNG in", Date.now() - t0, "ms — bytes =", pngBuffer.length);
   } else {
     pngBuffer = fileBuffer;
   }
