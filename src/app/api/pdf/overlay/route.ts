@@ -165,7 +165,7 @@ async function generateDohPdf(
   // company chosen during invoice entry. Falls back to legacy hardcoded values
   // for jobs created before companies were added.
   const company = (job.company as Record<string, unknown> | null) || null;
-  const vendorName = (company?.name as string) || "Gotham HVAC LLC";
+  const vendorName = (company?.name as string) || "";
   const vendorPhone = (company?.phone as string) || (customer.phone_primary as string) || "";
   const vendorCounty = (company?.county as string) || (customer.city as string) || "";
 

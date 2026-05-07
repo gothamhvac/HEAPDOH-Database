@@ -77,7 +77,7 @@ function CompanyForm({
         {initial ? "Edit Company" : "New Company"}
       </h2>
       <div className="space-y-4">
-        <Field label="Company Name *" value={name} onChange={setName} placeholder="e.g. Gotham HVAC LLC" />
+        <Field label="Company Name *" value={name} onChange={setName} placeholder="e.g. Acme HVAC LLC" />
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Phone" value={phone} onChange={setPhone} placeholder="(555) 123-4567" type="tel" />
