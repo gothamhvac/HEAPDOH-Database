@@ -5,8 +5,8 @@
 import * as mupdf from "mupdf";
 
 export interface ParsedRow {
-  consumerName: string;        // e.g. "Jennifer M." (asterisk stripped)
-  applicationId: string;       // e.g. "39830"
+  consumerName: string;        // e.g. "First L." (asterisk stripped)
+  applicationId: string;       // e.g. 5-digit number
   assignmentDate: string | null; // ISO date or null
   paperMail: boolean;          // leading-asterisk consumers
   pageIndex: number;           // 0-based page
