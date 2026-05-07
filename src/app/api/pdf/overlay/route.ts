@@ -224,35 +224,52 @@ async function generateDohPdf(
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const signatures = (job.signatures as Record<string, unknown>[]) || [];
 
+  // Load DOH template field map ONCE up front so we can log its state.
+  const programId = (job.program as Record<string, unknown>).id as string;
+  const { data: tmpl } = await admin
+    .from("pdf_overlay_templates")
+    .select("field_map")
+    .eq("program_id", programId)
+    .eq("active", true)
+    .single();
+  const fieldMap = ((tmpl as Record<string, unknown> | null)?.field_map || []) as FieldMapping[];
+  const sigFieldKeys = fieldMap.filter((f) => f.kind === "signature" || f.key.includes("signature")).map((f) => f.key);
+  console.log("DOH: signatures on job =", signatures.length, "| template sig keys =", sigFieldKeys);
+
   for (const sig of signatures) {
     const role = sig.signer_role as string;
-    if (!sig.image_path) continue;
+    console.log("DOH: processing sig role=", role, "path=", sig.image_path);
+    if (!sig.image_path) {
+      console.warn("DOH: signature row has no image_path — skipping");
+      continue;
+    }
 
     try {
-      const { data: sigData } = await admin.storage.from("signatures").download(sig.image_path as string);
-      if (!sigData) continue;
+      const { data: sigData, error: dlErr } = await admin.storage.from("signatures").download(sig.image_path as string);
+      if (dlErr || !sigData) {
+        console.error("DOH: signature download failed for", sig.image_path, dlErr?.message);
+        continue;
+      }
 
       const sigBytes = new Uint8Array(await sigData.arrayBuffer());
       const pngImage = await pdf.embedPng(sigBytes);
       const page = pdf.getPage(0);
 
-      // Position based on role — get from template
-      const programId = (job.program as Record<string, unknown>).id as string;
-      const { data: tmpl } = await admin.from("pdf_overlay_templates").select("field_map").eq("program_id", programId).eq("active", true).single();
-      const fieldMap = ((tmpl as Record<string, unknown> | null)?.field_map || []) as FieldMapping[];
-
       const sigFieldKey = role === "customer" ? "consumer_signature" : "technician_signature";
       const sigField = fieldMap.find((f) => f.key === sigFieldKey);
 
-      if (sigField) {
-        page.drawImage(pngImage, {
-          x: sigField.x,
-          y: sigField.y,
-          width: sigField.width,
-          height: sigField.height,
-        });
-        console.log("DOH: Embedded", role, "signature");
+      if (!sigField) {
+        console.error("DOH: no field_map entry for", sigFieldKey, "— signature NOT placed. Available sig keys:", sigFieldKeys);
+        continue;
       }
+
+      page.drawImage(pngImage, {
+        x: sigField.x,
+        y: sigField.y,
+        width: sigField.width,
+        height: sigField.height,
+      });
+      console.log("DOH: Embedded", role, "signature at", sigField.x, sigField.y);
     } catch (e) {
       console.error("DOH signature error:", e);
     }
