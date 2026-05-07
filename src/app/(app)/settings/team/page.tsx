@@ -175,7 +175,7 @@ export default function TeamPage() {
                   <p className="text-xs font-bold text-slate-500 mb-3">Draw signature or upload an image</p>
 
                   <div className="border border-slate-200 rounded-xl overflow-hidden bg-white mb-3">
-                    <SignaturePad ref={sigRef} width={600} height={150} />
+                    <SignaturePad ref={sigRef} height={150} />
                   </div>
 
                   <div className="flex gap-2">

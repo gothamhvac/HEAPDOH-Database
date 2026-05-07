@@ -55,7 +55,8 @@ export async function POST(
       .select("*")
       .eq("sheet_id", id);
 
-    const appIds = (rows || []).map((r) => r.application_id);
+    const sheetRows = (rows || []) as Array<Record<string, unknown>>;
+    const appIds = sheetRows.map((r) => String(r.application_id));
     const { data: jobs } = await admin
       .from("jobs")
       .select("id, invoice_number, status, scheduled_at, installed_at")
@@ -77,8 +78,8 @@ export async function POST(
     const pdf = await PDFDocument.load(bytes);
     const font = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-    for (const row of rows || []) {
-      const job = jobByAppId.get(row.application_id);
+    for (const row of sheetRows) {
+      const job = jobByAppId.get(String(row.application_id));
       const label = statusLabel(
         job?.status as string | undefined,
         job?.scheduled_at as string | undefined,
@@ -86,7 +87,7 @@ export async function POST(
       );
       if (!label) continue;
 
-      const page = pdf.getPage(row.page_index || 0);
+      const page = pdf.getPage((row.page_index as number | undefined) || 0);
       const pageHeight = page.getHeight();
       // mupdf gives row_y in top-left-origin (pixels-from-top). pdf-lib draws
       // in the page's user-space, which is bottom-left-origin for normal pages

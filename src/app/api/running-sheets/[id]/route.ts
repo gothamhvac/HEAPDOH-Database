@@ -24,7 +24,8 @@ export async function GET(
       .order("row_y");
 
     // Re-resolve matches in case jobs were created/edited since upload.
-    const appIds = (rows || []).map((r) => r.application_id);
+    const sheetRows = (rows || []) as Array<Record<string, unknown>>;
+    const appIds = sheetRows.map((r) => String(r.application_id));
     const { data: matchJobs } = await admin
       .from("jobs")
       .select("id, invoice_number, status, scheduled_at, installed_at, completed_at")
@@ -32,13 +33,13 @@ export async function GET(
       .in("invoice_number", appIds.length ? appIds : ["__none__"]);
 
     const byAppId = new Map<string, Record<string, unknown>>();
-    for (const j of matchJobs || []) {
+    for (const j of (matchJobs || []) as Array<Record<string, unknown>>) {
       if (j.invoice_number) byAppId.set(String(j.invoice_number), j);
     }
 
-    const enriched = (rows || []).map((r) => ({
+    const enriched = sheetRows.map((r) => ({
       ...r,
-      matchedJob: byAppId.get(r.application_id) ?? null,
+      matchedJob: byAppId.get(String(r.application_id)) ?? null,
     }));
 
     return NextResponse.json({ sheet, rows: enriched });

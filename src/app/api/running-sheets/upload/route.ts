@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
         .from("companies")
         .select("id, name")
         .eq("org_id", orgId);
-      const hits = (cs || []).filter((c) => norm(String(c.name)) === target);
-      if (hits.length === 1) matchedCompany = hits[0] as { id: string; name: string };
+      const hits = ((cs || []) as Array<{ id: string; name: string }>).filter((c) => norm(c.name) === target);
+      if (hits.length === 1) matchedCompany = hits[0];
     }
 
     // Match rows against existing jobs by application_id (stored in jobs.invoice_number)

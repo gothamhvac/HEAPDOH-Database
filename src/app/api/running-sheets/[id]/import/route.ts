@@ -29,8 +29,8 @@ export async function POST(
         .from("companies")
         .select("id, name")
         .eq("org_id", orgId);
-      const hits = (cs || []).filter((c) => norm(String(c.name)) === target);
-      if (hits.length === 1) companyId = (hits[0] as { id: string }).id;
+      const hits = ((cs || []) as Array<{ id: string; name: string }>).filter((c) => norm(c.name) === target);
+      if (hits.length === 1) companyId = hits[0].id;
     }
 
     const { data: rows, error: rowsErr } = await admin
@@ -47,7 +47,8 @@ export async function POST(
     if (!dohProgram) return NextResponse.json({ error: "DOH program not found" }, { status: 500 });
 
     // Re-check existing jobs by application_id so we don't double-create.
-    const appIds = (rows || []).map((r) => r.application_id);
+    const sheetRows = (rows || []) as Array<Record<string, unknown>>;
+    const appIds = sheetRows.map((r) => String(r.application_id));
     const { data: existingJobs } = await admin
       .from("jobs")
       .select("id, invoice_number, company_id")
@@ -55,7 +56,7 @@ export async function POST(
       .in("invoice_number", appIds.length ? appIds : ["__none__"]);
 
     const existingByAppId = new Map<string, { id: string; company_id: string | null }>();
-    for (const j of existingJobs || []) {
+    for (const j of (existingJobs || []) as Array<{ id: string; invoice_number: string | null; company_id: string | null }>) {
       if (j.invoice_number) {
         existingByAppId.set(String(j.invoice_number), { id: j.id, company_id: j.company_id });
       }
@@ -65,9 +66,9 @@ export async function POST(
     let matched = 0;
     let backfilled = 0;
 
-    for (const row of rows || []) {
+    for (const row of sheetRows) {
       // If already matched/created, skip but make sure the link is current.
-      const existing = existingByAppId.get(row.application_id);
+      const existing = existingByAppId.get(String(row.application_id));
       if (existing) {
         if (row.matched_job_id !== existing.id) {
           await admin
