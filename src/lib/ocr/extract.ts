@@ -1,16 +1,24 @@
 import * as mupdf from "mupdf";
 import { createWorker } from "tesseract.js";
+import path from "path";
 
 interface ExtractedData {
   [key: string]: string | undefined;
 }
 
-// Run tesseract.js (WASM) on a PNG buffer. Works in serverless runtimes
-// where the system `tesseract` binary isn't installed.
+// Local copy of eng.traineddata.gz lives at public/tessdata/. Serving it from
+// disk avoids the default CDN fetch (tessdata.projectnaptha.com) that hangs
+// on Vercel and burns the function's max duration with no log output.
+const LANG_PATH = path.join(process.cwd(), "public", "tessdata");
+
 async function ocrPng(pngBuffer: Buffer): Promise<string> {
-  console.log("OCR: creating tesseract worker");
+  console.log("OCR: creating tesseract worker (langPath=", LANG_PATH, ")");
   const t0 = Date.now();
-  const worker = await createWorker("eng");
+  const worker = await createWorker("eng", 1, {
+    langPath: LANG_PATH,
+    cachePath: "/tmp",
+    gzip: true,
+  });
   console.log("OCR: worker ready in", Date.now() - t0, "ms — starting recognize");
   try {
     const t1 = Date.now();
