@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
     }
 
     const ext = file.name.split(".").pop() || "pdf";
-    const storagePath = `invoices/${orgId}/${jobId}.${ext}`;
+    // Path is relative to the bucket — don't prefix the bucket name.
+    const storagePath = `${orgId}/${jobId}.${ext}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const { error: uploadErr } = await admin.storage

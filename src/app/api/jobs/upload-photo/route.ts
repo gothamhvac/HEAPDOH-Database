@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
     }
 
     const ext = file.name.split(".").pop() || "jpg";
-    const storagePath = `photos/${orgId}/${jobId}_${Date.now()}.${ext}`;
+    // Path is relative to the bucket — don't prefix the bucket name.
+    const storagePath = `${orgId}/${jobId}_${Date.now()}.${ext}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const { error: uploadErr } = await admin.storage

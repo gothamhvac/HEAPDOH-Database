@@ -21,7 +21,10 @@ export async function POST(request: NextRequest) {
       const base64 = image_data.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64, "base64");
 
-      storagePath = `signatures/${job_id}_${signer_role}.png`;
+      // Path is relative to the bucket — never prefix the bucket name into
+      // the key, or PDF overlay/download paths look in "signatures/signatures/…"
+      // and silently fail to find the image.
+      storagePath = `${job_id}_${signer_role}.png`;
       const { error: uploadErr } = await admin.storage
         .from("signatures")
         .upload(storagePath, buffer, { contentType: "image/png", upsert: true });

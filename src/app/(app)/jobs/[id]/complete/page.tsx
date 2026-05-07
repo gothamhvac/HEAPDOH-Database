@@ -525,38 +525,17 @@ export default function CompletePage() {
           </div>
         </div>
 
-        {/* Company (vendor) — required for DOH, optional for HEAP */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 mb-5">
-          <div className="flex items-center gap-3 mb-4">
-            <Building2 className="h-5 w-5 text-slate-500" />
-            <h2 className="text-sm font-bold text-slate-900">
-              Company
-              <span className="text-red-500 font-bold ml-1">*</span>
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500 mb-3">
-            {isDoh
-              ? "Vendor info will be filled into the DOH invoice and used to sort jobs by company."
-              : "HEAP forms come pre-printed with the vendor — we still tag the job so you can sort by company."}
-          </p>
-          {companies.length > 0 ? (
-            <select
-              value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            >
-              <option value="">Select company...</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          ) : (
-            <p className="text-sm text-slate-400">
-              No companies added.{" "}
-              <Link href="/settings/companies" className="text-blue-600 font-bold">Add companies</Link>
-            </p>
-          )}
-        </div>
+        {/* Company (vendor) — required for DOH, optional for HEAP.
+            If the job was created from a running sheet, the vendor is already
+            known (the sheet was issued to a specific company). Show it
+            confirmed and skip the picker unless the user explicitly changes it. */}
+        <CompanyCard
+          companies={companies}
+          companyId={companyId}
+          setCompanyId={setCompanyId}
+          presetFromJob={!!job?.company_id && job.company_id === companyId}
+          isDoh={isDoh}
+        />
 
         {/* Technician */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 mb-5">
@@ -776,6 +755,81 @@ export default function CompletePage() {
           All Jobs
         </Link>
       </div>
+    </div>
+  );
+}
+
+function CompanyCard({
+  companies,
+  companyId,
+  setCompanyId,
+  presetFromJob,
+  isDoh,
+}: {
+  companies: { id: string; name: string }[];
+  companyId: string;
+  setCompanyId: (v: string) => void;
+  presetFromJob: boolean;
+  isDoh: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const selected = companies.find((c) => c.id === companyId);
+  const showPicker = !presetFromJob || editing || !selected;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 mb-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Building2 className="h-5 w-5 text-slate-500" />
+          <h2 className="text-sm font-bold text-slate-900">
+            Company<span className="text-red-500 font-bold ml-1">*</span>
+          </h2>
+        </div>
+        {presetFromJob && !editing && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-xs font-bold text-blue-600 hover:text-blue-700"
+          >
+            Change
+          </button>
+        )}
+      </div>
+
+      {!showPicker ? (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-emerald-900 truncate">{selected?.name}</p>
+            <p className="text-[11px] text-emerald-700">From the running sheet that issued this job.</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-slate-500 mb-3">
+            {isDoh
+              ? "Vendor info goes on the DOH invoice and is used for sorting."
+              : "HEAP forms come pre-printed — we tag the job so you can sort by company."}
+          </p>
+          {companies.length > 0 ? (
+            <select
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            >
+              <option value="">Select company...</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          ) : (
+            <p className="text-sm text-slate-400">
+              No companies added.{" "}
+              <Link href="/settings/companies" className="text-blue-600 font-bold">Add companies</Link>
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
