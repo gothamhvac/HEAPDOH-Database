@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Both packages load WASM and worker scripts from disk at runtime —
+  // Next's webpack bundling breaks those resolutions, so opt them out.
+  serverExternalPackages: ["tesseract.js", "mupdf"],
 };
 
 export default nextConfig;

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { extractFromInvoice, mapToCustomerData } from "@/lib/ocr/extract";
 
-export const maxDuration = 30;
+// tesseract.js downloads ~10MB of language data on cold start; give the
+// function headroom over the 30s default.
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {

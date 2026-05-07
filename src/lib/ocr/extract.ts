@@ -1,27 +1,19 @@
-import { execSync } from "child_process";
-import { writeFileSync, readFileSync, unlinkSync, mkdtempSync } from "fs";
-import { join } from "path";
-import { tmpdir } from "os";
 import * as mupdf from "mupdf";
+import { createWorker } from "tesseract.js";
 
 interface ExtractedData {
   [key: string]: string | undefined;
 }
 
-/**
- * Run system tesseract on a PNG file. Returns full text.
- */
-function ocrImage(imagePath: string): string {
+// Run tesseract.js (WASM) on a PNG buffer. Works in serverless runtimes
+// where the system `tesseract` binary isn't installed.
+async function ocrPng(pngBuffer: Buffer): Promise<string> {
+  const worker = await createWorker("eng");
   try {
-    const outBase = imagePath.replace(/\.\w+$/, "_out");
-    execSync(`tesseract "${imagePath}" "${outBase}" --psm 3 2>/dev/null`, {
-      timeout: 15000,
-    });
-    const text = readFileSync(outBase + ".txt", "utf8");
-    try { unlinkSync(outBase + ".txt"); } catch {}
-    return text;
-  } catch {
-    return "";
+    const { data } = await worker.recognize(pngBuffer);
+    return data.text;
+  } finally {
+    await worker.terminate();
   }
 }
 
@@ -55,83 +47,68 @@ export async function extractFromInvoice(
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<ExtractedData> {
-  const tmp = mkdtempSync(join(tmpdir(), "ocr-"));
-
-  try {
-    // Step 1: Render PDF to high-res PNG
-    let imagePath: string;
-    if (mimeType.includes("pdf")) {
-      const doc = mupdf.Document.openDocument(fileBuffer, "application/pdf");
-      const page = doc.loadPage(0);
-      const pixmap = page.toPixmap(
-        mupdf.Matrix.scale(3, 3),
-        mupdf.ColorSpace.DeviceRGB
-      );
-      imagePath = join(tmp, "page.png");
-      writeFileSync(imagePath, Buffer.from(pixmap.asPNG()));
-    } else {
-      imagePath = join(tmp, "page.png");
-      writeFileSync(imagePath, fileBuffer);
-    }
-
-    // Step 2: Full-page OCR
-    const fullText = ocrImage(imagePath);
-    if (!fullText.trim()) {
-      return {};
-    }
-
-    // Step 3: Parse the structured text
-    const lines = fullText.split("\n").map((l) => l.trim()).filter(Boolean);
-    const results: ExtractedData = {};
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const nextLine = lines[i + 1] || "";
-
-      // Clean the line for matching — remove OCR artifacts like | ] etc
-      const cleanLine = line.replace(/[|[\]{}]/g, "").replace(/\s+/g, " ").trim();
-
-      // "Name of Customer" label → next line is the name
-      if (/name\s+of\s+customer/i.test(cleanLine)) {
-        const name = clean(nextLine);
-        if (name && !/street\s+address/i.test(name)) {
-          results.customer_name = name;
-        }
-      }
-
-      // "Street Address" label → next line is the address
-      if (/street\s+address/i.test(cleanLine)) {
-        const addr = clean(nextLine);
-        if (addr && !/^city/i.test(addr)) {
-          results.address = addr;
-        }
-      }
-
-      // "City State Zip Code Phone" label line (with OCR variations)
-      // Sometimes OCR only picks up "City State" without "Zip Code Phone"
-      if (/c\w{0,3}y?\s+state/i.test(cleanLine) && !/united/i.test(cleanLine)) {
-        // The next line has the actual values: "Bronx NY 10453 (347) 912-8806"
-        // Or sometimes just "MANHATTAN" if zip/phone are missing or on another line
-        const dataLine = clean(nextLine);
-        if (dataLine && !/vendor/i.test(dataLine)) {
-          // Check if the line after that also has data (sometimes split across 2 lines)
-          const nextNext = lines[i + 2] ? clean(lines[i + 2]) : "";
-          const combined = nextNext && !/vendor/i.test(nextNext) && !/section/i.test(nextNext)
-            ? dataLine + " " + nextNext
-            : dataLine;
-          const parsed = parseCityStateZipPhone(combined);
-          if (parsed.city) results.city = parsed.city;
-          if (parsed.state) results.state = parsed.state;
-          if (parsed.zip) results.zip_code = parsed.zip;
-          if (parsed.phone) results.phone_number = parsed.phone;
-        }
-      }
-    }
-
-    return results;
-  } finally {
-    try { execSync(`rm -rf "${tmp}"`); } catch {}
+  // Step 1: Render PDF page 1 to high-res PNG (or use the image as-is)
+  let pngBuffer: Buffer;
+  if (mimeType.includes("pdf")) {
+    const doc = mupdf.Document.openDocument(fileBuffer, "application/pdf");
+    const page = doc.loadPage(0);
+    const pixmap = page.toPixmap(
+      mupdf.Matrix.scale(3, 3),
+      mupdf.ColorSpace.DeviceRGB
+    );
+    pngBuffer = Buffer.from(pixmap.asPNG());
+  } else {
+    pngBuffer = fileBuffer;
   }
+
+  // Step 2: Full-page OCR
+  const fullText = await ocrPng(pngBuffer);
+  if (!fullText.trim()) {
+    return {};
+  }
+
+  // Step 3: Parse the structured text
+  const lines = fullText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const results: ExtractedData = {};
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const nextLine = lines[i + 1] || "";
+
+    const cleanLine = line.replace(/[|[\]{}]/g, "").replace(/\s+/g, " ").trim();
+
+    if (/name\s+of\s+customer/i.test(cleanLine)) {
+      const name = clean(nextLine);
+      if (name && !/street\s+address/i.test(name)) {
+        results.customer_name = name;
+      }
+    }
+
+    if (/street\s+address/i.test(cleanLine)) {
+      const addr = clean(nextLine);
+      if (addr && !/^city/i.test(addr)) {
+        results.address = addr;
+      }
+    }
+
+    // "City State Zip Code Phone" label — sometimes OCR truncates to "City State"
+    if (/c\w{0,3}y?\s+state/i.test(cleanLine) && !/united/i.test(cleanLine)) {
+      const dataLine = clean(nextLine);
+      if (dataLine && !/vendor/i.test(dataLine)) {
+        const nextNext = lines[i + 2] ? clean(lines[i + 2]) : "";
+        const combined = nextNext && !/vendor/i.test(nextNext) && !/section/i.test(nextNext)
+          ? dataLine + " " + nextNext
+          : dataLine;
+        const parsed = parseCityStateZipPhone(combined);
+        if (parsed.city) results.city = parsed.city;
+        if (parsed.state) results.state = parsed.state;
+        if (parsed.zip) results.zip_code = parsed.zip;
+        if (parsed.phone) results.phone_number = parsed.phone;
+      }
+    }
+  }
+
+  return results;
 }
 
 /**
