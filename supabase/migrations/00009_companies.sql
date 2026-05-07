@@ -3,7 +3,7 @@
 -- (HEAP forms come pre-printed with the company; DOH does not.)
 -- ============================================================
 create table companies (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   name text not null,
   phone text,

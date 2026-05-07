@@ -2,7 +2,7 @@
 -- AC MODELS — lookup table for AC units
 -- ============================================================
 create table ac_models (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   brand text not null,
   model_number text not null,

@@ -3,7 +3,7 @@
 -- ============================================================
 
 -- Extensions
-create extension if not exists "uuid-ossp";
+-- gen_random_uuid() is built-in in Postgres 13+, no extension needed
 
 -- ============================================================
 -- ENUMS
@@ -37,7 +37,7 @@ create type overlay_field_kind as enum ('text', 'signature', 'date', 'checkbox')
 -- ORGANIZATIONS
 -- ============================================================
 create table organizations (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   created_at timestamptz not null default now()
 );
@@ -58,7 +58,7 @@ create table profiles (
 -- PROGRAMS (seed HEAP + DOH)
 -- ============================================================
 create table programs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   code text unique not null,
   name text not null,
   submission_format jsonb,
@@ -73,7 +73,7 @@ insert into programs (code, name) values
 -- CUSTOMERS
 -- ============================================================
 create table customers (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   full_name text not null,
   address_line1 text,
@@ -96,7 +96,7 @@ create unique index customers_dedupe_idx
 -- JOBS
 -- ============================================================
 create table jobs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   program_id uuid not null references programs(id),
   customer_id uuid references customers(id),
@@ -122,7 +122,7 @@ create index jobs_program_idx on jobs (program_id);
 -- JOB SYSTEMS
 -- ============================================================
 create table job_systems (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   job_id uuid not null references jobs(id) on delete cascade,
   system_type text not null,
   make text,
@@ -140,7 +140,7 @@ create table job_systems (
 -- ATTACHMENTS
 -- ============================================================
 create table attachments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   job_id uuid not null references jobs(id) on delete cascade,
   kind attachment_kind not null,
   storage_path text not null,
@@ -157,7 +157,7 @@ create table attachments (
 -- CONTACT LOG
 -- ============================================================
 create table contact_log (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   job_id uuid not null references jobs(id) on delete cascade,
   channel contact_channel not null,
   direction contact_direction not null default 'outbound',
@@ -171,7 +171,7 @@ create table contact_log (
 -- SIGNATURES
 -- ============================================================
 create table signatures (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   job_id uuid not null references jobs(id) on delete cascade,
   signer_name text not null,
   signer_role text not null,
@@ -185,7 +185,7 @@ create table signatures (
 -- PDF OVERLAY TEMPLATES
 -- ============================================================
 create table pdf_overlay_templates (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   program_id uuid not null references programs(id),
   name text not null,
   version int not null default 1,
@@ -199,7 +199,7 @@ create table pdf_overlay_templates (
 -- SUBMISSION BATCHES
 -- ============================================================
 create table submission_batches (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   program_id uuid not null references programs(id),
   submitted_at timestamptz not null default now(),
   submitted_by uuid references profiles(id),

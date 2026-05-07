@@ -3,7 +3,7 @@
 -- (Vendor Assignment Notice PDFs from NY State of Health)
 -- ============================================================
 create table doh_running_sheets (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   storage_path text not null,
   source_filename text,
@@ -28,7 +28,7 @@ create policy "Org members can delete running sheets"
 
 -- One row per consumer line in the parsed sheet.
 create table doh_running_sheet_rows (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   sheet_id uuid not null references doh_running_sheets(id) on delete cascade,
   application_id text not null,
   consumer_name text not null,
