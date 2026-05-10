@@ -1,55 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { extractFromInvoice, mapToCustomerData } from "@/lib/ocr/extract";
 
-// tesseract.js downloads ~10MB of language data on cold start; give the
-// function headroom over the 30s default.
-export const maxDuration = 60;
+// OCR runs in the BROWSER now (see src/lib/ocr/browser.ts). This route
+// just accepts the extracted fields the client produced and writes them
+// to the customer row + flips the attachment's ocr_status. No serverless
+// tesseract — Vercel's function bundler couldn't ship its worker
+// transitively without breaking the deploy package.
+
+interface OcrBody {
+  job_id: string;
+  customerData?: {
+    full_name?: string | null;
+    address_line1?: string | null;
+    address_line2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip?: string | null;
+    phone_primary?: string | null;
+  };
+  raw_text?: string;
+  // Browser sends { error } if OCR couldn't run — we still mark the
+  // attachment status so the UI doesn't sit on "Pending" forever.
+  error?: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const admin = createServiceClient();
-    const { job_id } = await request.json();
+    const body = (await request.json()) as OcrBody;
 
-    if (!job_id) {
+    if (!body.job_id) {
       return NextResponse.json({ error: "job_id is required" }, { status: 400 });
     }
 
-    const { data: attachment, error: attachErr } = await admin
+    const { data: attachment } = await admin
       .from("attachments")
-      .select("*")
-      .eq("job_id", job_id)
+      .select("id")
+      .eq("job_id", body.job_id)
       .eq("kind", "invoice_original")
       .single();
 
-    if (attachErr || !attachment) {
-      return NextResponse.json({ error: "No invoice found" }, { status: 404 });
+    if (attachment) {
+      await admin
+        .from("attachments")
+        .update({
+          ocr_status: body.error ? "failed" : "done",
+          ocr_raw: body.raw_text || null,
+        })
+        .eq("id", attachment.id);
     }
 
-    await admin.from("attachments").update({ ocr_status: "processing" }).eq("id", attachment.id);
+    const { data: job } = await admin
+      .from("jobs")
+      .select("customer_id")
+      .eq("id", body.job_id)
+      .single();
 
-    const { data: fileData, error: downloadErr } = await admin.storage
-      .from("invoices")
-      .download(attachment.storage_path);
-
-    if (downloadErr || !fileData) {
-      await admin.from("attachments").update({ ocr_status: "failed" }).eq("id", attachment.id);
-      return NextResponse.json({ error: "Failed to download invoice" }, { status: 500 });
-    }
-
-    const buffer = Buffer.from(await fileData.arrayBuffer());
-    console.log("OCR: invoke extractFromInvoice, mime=", attachment.mime_type, "size=", buffer.length);
-    const extracted = await extractFromInvoice(buffer, attachment.mime_type || "application/pdf");
-    console.log("OCR: extractFromInvoice returned keys=", Object.keys(extracted));
-    const customerData = mapToCustomerData(extracted);
-
-    await admin.from("attachments").update({ ocr_status: "done", ocr_raw: extracted }).eq("id", attachment.id);
-
-    const { data: job } = await admin.from("jobs").select("customer_id").eq("id", job_id).single();
-
-    if (job?.customer_id) {
+    if (job?.customer_id && body.customerData) {
       const updates: Record<string, string> = {};
-      for (const [key, value] of Object.entries(customerData)) {
+      for (const [key, value] of Object.entries(body.customerData)) {
         if (value) updates[key] = value;
       }
       if (Object.keys(updates).length > 0) {
@@ -57,9 +66,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, extracted, customerData });
+    return NextResponse.json({
+      success: !body.error,
+      customerData: body.customerData,
+    });
   } catch (err) {
-    console.error("OCR error:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "OCR failed" }, { status: 500 });
+    console.error("OCR persist error:", err);
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
   }
 }

@@ -119,17 +119,36 @@ export default function NewJobPage() {
           throw new Error(body.error || "Failed to upload");
         }
 
-        // Run OCR
-        const ocrRes = await fetch("/api/ocr", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ job_id: job.id }),
-        });
-
+        // Run OCR in the browser, then post the extracted fields to the
+        // server. Serverless tesseract.js doesn't survive Vercel's bundler.
         let customerName = "Pending";
-        if (ocrRes.ok) {
-          const ocrData = await ocrRes.json();
-          customerName = ocrData.customerData?.full_name || "Extracted";
+        try {
+          const { ocrInvoiceInBrowser } = await import("@/lib/ocr/browser");
+          const ocrResult = await ocrInvoiceInBrowser(inv.file);
+
+          await fetch("/api/ocr", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              job_id: job.id,
+              customerData: ocrResult.customerData,
+              raw_text: ocrResult.rawText,
+            }),
+          });
+
+          customerName = ocrResult.customerData.full_name || "Extracted";
+        } catch (ocrErr) {
+          // OCR failed — still mark the attachment so the UI doesn't sit
+          // on "Pending" forever, but let the user enter details manually.
+          await fetch("/api/ocr", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              job_id: job.id,
+              error: ocrErr instanceof Error ? ocrErr.message : "OCR failed",
+            }),
+          });
+          customerName = "Pending";
         }
 
         updatedFiles[i] = {
