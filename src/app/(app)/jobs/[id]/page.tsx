@@ -26,6 +26,7 @@ import {
   XCircle,
   FileDown,
   Camera,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -63,6 +64,7 @@ export default function JobDetailPage() {
   // Derive state before hooks
   const customer = (job?.customer as Record<string, unknown> | null) ?? null;
   const program = (job?.program as Record<string, unknown> | null) ?? null;
+  const company = (job?.company as Record<string, unknown> | null) ?? null;
   const attachments = ((job?.attachments as Record<string, unknown>[]) ?? []);
   const contactLog = ((job?.contact_log as Record<string, unknown>[]) ?? []).sort(
     (a, b) => new Date(b.contacted_at as string).getTime() - new Date(a.contacted_at as string).getTime()
@@ -236,6 +238,30 @@ export default function JobDetailPage() {
             <CheckCircle2 className="h-6 w-6 text-emerald-600" />
             <p className="font-bold text-emerald-900">Job Completed</p>
           </div>
+
+          {(!!company?.name || !!customer?.address_line1) && (
+            <div className="grid gap-2 mb-4 text-sm">
+              {company?.name ? (
+                <div className="flex items-start gap-2 text-emerald-900">
+                  <Building2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-700" />
+                  <span className="font-bold">{String(company.name)}</span>
+                </div>
+              ) : null}
+              {customer?.address_line1 ? (
+                <div className="flex items-start gap-2 text-emerald-900">
+                  <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-emerald-700" />
+                  <span>
+                    {String(customer.address_line1)}
+                    {customer.address_line2 ? `, ${String(customer.address_line2)}` : ""}
+                    {customer.city ? `, ${String(customer.city)}` : ""}
+                    {customer.state ? `, ${String(customer.state)}` : ""}
+                    {customer.zip ? ` ${String(customer.zip)}` : ""}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           <div className="flex gap-3 flex-wrap">
             {(() => {
               const signedInvoice = attachments.find((a) => a.kind === "invoice_signed");

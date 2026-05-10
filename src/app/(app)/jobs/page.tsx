@@ -279,11 +279,11 @@ function JobCard({ job }: { job: Record<string, unknown> }) {
             <span className="truncate">{String(company.name)}</span>
           </div>
         ) : null}
-        {customer.city ? (
+        {customer.address_line1 || customer.city ? (
           <div className="flex items-center gap-1">
             <MapPin className="h-2.5 w-2.5 shrink-0" />
             <span className="truncate">
-              {String(customer.address_line1 || "")}{customer.city ? `, ${String(customer.city)}` : ""}
+              {[customer.address_line1, customer.city].filter(Boolean).map(String).join(", ")}
             </span>
           </div>
         ) : null}
