@@ -27,6 +27,17 @@ const nextConfig: NextConfig = {
       "./node_modules/.pnpm/tesseract.js-core@*/node_modules/tesseract.js-core/tesseract-core-simd-lstm.*",
       "./node_modules/.pnpm/tesseract.js-core@*/node_modules/tesseract.js-core/index.js",
       "./node_modules/.pnpm/tesseract.js-core@*/node_modules/tesseract.js-core/package.json",
+
+      // tesseract.js's runtime deps — the tracer doesn't follow requires
+      // from inside the worker child, so we have to ship them explicitly.
+      "./node_modules/.pnpm/bmp-js@*/**",
+      "./node_modules/.pnpm/idb-keyval@*/**",
+      "./node_modules/.pnpm/is-electron@*/**",
+      "./node_modules/.pnpm/is-url@*/**",
+      "./node_modules/.pnpm/node-fetch@*/**",
+      "./node_modules/.pnpm/regenerator-runtime@*/**",
+      "./node_modules/.pnpm/wasm-feature-detect@*/**",
+      "./node_modules/.pnpm/zlibjs@*/**",
     ],
   },
 };
