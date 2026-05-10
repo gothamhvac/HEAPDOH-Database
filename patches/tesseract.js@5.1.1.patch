@@ -1,0 +1,13 @@
+diff --git a/src/worker-script/node/index.js b/src/worker-script/node/index.js
+index c00dba735b65676b87d1d3835dc1183a7270a6b1..b4163cdee11f83747450e400e820ef57fb79454f 100644
+--- a/src/worker-script/node/index.js
++++ b/src/worker-script/node/index.js
+@@ -10,7 +10,7 @@
+ 
+ const fetch = require('node-fetch');
+ const { parentPort } = require('worker_threads');
+-const worker = require('..');
++const worker = require('../index.js');
+ const getCore = require('./getCore');
+ const gunzip = require('./gunzip');
+ const cache = require('./cache');

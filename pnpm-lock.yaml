@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  tesseract.js@5.1.1:
+    hash: 82a61897add58ed300406156da09c22566fdc1275873043da01b9aca93414f58
+    path: patches/tesseract.js@5.1.1.patch
+
 importers:
 
   .:
@@ -84,8 +89,8 @@ importers:
         specifier: ^3.5.0
         version: 3.5.0
       tesseract.js:
-        specifier: ^7.0.0
-        version: 7.0.0
+        specifier: ^5.1.1
+        version: 5.1.1(patch_hash=82a61897add58ed300406156da09c22566fdc1275873043da01b9aca93414f58)
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -2101,6 +2106,9 @@ packages:
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
     hasBin: true
 
+  is-electron@2.2.2:
+    resolution: {integrity: sha512-FO/Rhvz5tuw4MCWkpMzHFKWD2LsfHzIb7i6MdPYZ/KW7AlxawyLkqdy+jPZP1WubqEADE3O4FUENlJHDfQASRg==}
+
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
     engines: {node: '>=0.10.0'}
@@ -3099,11 +3107,11 @@ packages:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
     engines: {node: '>=6'}
 
-  tesseract.js-core@7.0.0:
-    resolution: {integrity: sha512-WnNH518NzmbSq9zgTPeoF8c+xmilS8rFIl1YKbk/ptuuc7p6cLNELNuPAzcmsYw450ca6bLa8j3t0VAtq435Vw==}
+  tesseract.js-core@5.1.1:
+    resolution: {integrity: sha512-KX3bYSU5iGcO1XJa+QGPbi+Zjo2qq6eBhNjSGR5E5q0JtzkoipJKOUQD7ph8kFyteCEfEQ0maWLu8MCXtvX5uQ==}
 
-  tesseract.js@7.0.0:
-    resolution: {integrity: sha512-exPBkd+z+wM1BuMkx/Bjv43OeLBxhL5kKWsz/9JY+DXcXdiBjiAch0V49QR3oAJqCaL5qURE0vx9Eo+G5YE7mA==}
+  tesseract.js@5.1.1:
+    resolution: {integrity: sha512-lzVl/Ar3P3zhpUT31NjqeCo1f+D5+YfpZ5J62eo2S14QNVOmHBTtbchHm/YAbOOOzCegFnKf4B3Qih9LuldcYQ==}
 
   tiny-invariant@1.3.3:
     resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
@@ -5444,6 +5452,8 @@ snapshots:
 
   is-docker@3.0.0: {}
 
+  is-electron@2.2.2: {}
+
   is-extglob@2.1.1: {}
 
   is-finalizationregistry@1.1.1:
@@ -6484,17 +6494,18 @@ snapshots:
 
   tapable@2.3.3: {}
 
-  tesseract.js-core@7.0.0: {}
+  tesseract.js-core@5.1.1: {}
 
-  tesseract.js@7.0.0:
+  tesseract.js@5.1.1(patch_hash=82a61897add58ed300406156da09c22566fdc1275873043da01b9aca93414f58):
     dependencies:
       bmp-js: 0.1.0
       idb-keyval: 6.2.2
+      is-electron: 2.2.2
       is-url: 1.2.4
       node-fetch: 2.7.0
       opencollective-postinstall: 2.0.3
       regenerator-runtime: 0.13.11
-      tesseract.js-core: 7.0.0
+      tesseract.js-core: 5.1.1
       wasm-feature-detect: 1.8.0
       zlibjs: 0.3.1
     transitivePeerDependencies:
