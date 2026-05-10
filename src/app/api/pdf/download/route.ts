@@ -9,10 +9,13 @@ const MIME_BY_EXT: Record<string, string> = {
   heic: "image/heic",
 };
 
-function mimeAndFilename(path: string): { mime: string; filename: string } {
+function mimeAndFilename(path: string, isInvoice: boolean): { mime: string; filename: string } {
   const ext = (path.split(".").pop() || "pdf").toLowerCase();
   const mime = MIME_BY_EXT[ext] || "application/octet-stream";
-  return { mime, filename: `invoice.${ext}` };
+  const filename = isInvoice
+    ? `invoice.${ext}`
+    : path.split("/").pop() || `download.${ext}`;
+  return { mime, filename };
 }
 
 export async function GET(request: NextRequest) {
@@ -25,9 +28,13 @@ export async function GET(request: NextRequest) {
     }
 
     const admin = createServiceClient();
-    const bucket = path.startsWith("signed-pdfs") ? "signed-pdfs" : "invoices";
+    // Allow caller to pin a bucket (e.g. "photos"); fall back to the legacy
+    // prefix-based detection so existing invoice links keep working.
+    const explicitBucket = searchParams.get("bucket");
+    const bucket = explicitBucket || (path.startsWith("signed-pdfs") ? "signed-pdfs" : "invoices");
     const storagePath = path.startsWith("signed-pdfs/") ? path.replace("signed-pdfs/", "") : path;
-    const { mime, filename } = mimeAndFilename(storagePath);
+    const isInvoice = bucket === "invoices" || bucket === "signed-pdfs";
+    const { mime, filename } = mimeAndFilename(storagePath, isInvoice);
 
     const { data, error } = await admin.storage
       .from(bucket)

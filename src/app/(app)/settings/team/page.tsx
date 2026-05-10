@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Loader2, User, PenTool, Check, X, Upload } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, User, PenTool, Check, X, Upload, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef } from "react";
 import SignaturePad, { type SignaturePadRef } from "@/components/signature/SignaturePad";
@@ -23,6 +23,8 @@ export default function TeamPage() {
   const [saving, setSaving] = useState(false);
   const [signingTechId, setSigningTechId] = useState<string | null>(null);
   const [savingSig, setSavingSig] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const sigRef = useRef<SignaturePadRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,6 +73,22 @@ export default function TeamPage() {
       setSigningTechId(null);
     } finally {
       setSavingSig(false);
+    }
+  }
+
+  async function archiveTech(techId: string) {
+    setDeletingId(techId);
+    try {
+      const res = await fetch(`/api/techs/${techId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json();
+        alert(body.error || "Failed to remove tech");
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["techs"] });
+      setConfirmDeleteId(null);
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -167,7 +185,41 @@ export default function TeamPage() {
                   <PenTool className="h-3.5 w-3.5" />
                   {tech.signature_path ? "Update Sig" : "Add Sig"}
                 </button>
+                {tech.role !== "owner" && (
+                  <button
+                    onClick={() => setConfirmDeleteId(confirmDeleteId === tech.id ? null : tech.id)}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all"
+                    aria-label={`Remove ${tech.full_name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
+
+              {confirmDeleteId === tech.id && (
+                <div className="border-t border-slate-200 px-4 py-3 bg-red-50">
+                  <p className="text-xs text-red-700 font-medium mb-3">
+                    Remove {tech.full_name}? They'll disappear from the picker, but past jobs and embedded signatures stay intact.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setConfirmDeleteId(null)}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg font-bold text-xs"
+                    >
+                      Cancel
+                    </Button>
+                    <button
+                      onClick={() => archiveTech(tech.id)}
+                      disabled={deletingId === tech.id}
+                      className="h-8 px-3 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {deletingId === tech.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Remove"}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Signature panel */}
               {signingTechId === tech.id && (

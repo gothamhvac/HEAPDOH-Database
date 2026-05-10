@@ -9,6 +9,7 @@ export async function GET() {
       .from("profiles")
       .select("id, full_name, role, phone, signature_path")
       .eq("org_id", orgId)
+      .is("archived_at", null)
       .order("full_name");
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

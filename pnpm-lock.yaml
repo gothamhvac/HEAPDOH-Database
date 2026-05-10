@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   tesseract.js@5.1.1:
-    hash: 82a61897add58ed300406156da09c22566fdc1275873043da01b9aca93414f58
+    hash: 8ad203ae8b9204302377bdbb0ab8e2096e99d30113e3479836b333733841366f
     path: patches/tesseract.js@5.1.1.patch
 
 importers:
@@ -90,7 +90,7 @@ importers:
         version: 3.5.0
       tesseract.js:
         specifier: ^5.1.1
-        version: 5.1.1(patch_hash=82a61897add58ed300406156da09c22566fdc1275873043da01b9aca93414f58)
+        version: 5.1.1(patch_hash=8ad203ae8b9204302377bdbb0ab8e2096e99d30113e3479836b333733841366f)
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -6496,7 +6496,7 @@ snapshots:
 
   tesseract.js-core@5.1.1: {}
 
-  tesseract.js@5.1.1(patch_hash=82a61897add58ed300406156da09c22566fdc1275873043da01b9aca93414f58):
+  tesseract.js@5.1.1(patch_hash=8ad203ae8b9204302377bdbb0ab8e2096e99d30113e3479836b333733841366f):
     dependencies:
       bmp-js: 0.1.0
       idb-keyval: 6.2.2

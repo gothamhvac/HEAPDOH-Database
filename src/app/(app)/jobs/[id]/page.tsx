@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   XCircle,
   FileDown,
+  Camera,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -235,7 +236,7 @@ export default function JobDetailPage() {
             <CheckCircle2 className="h-6 w-6 text-emerald-600" />
             <p className="font-bold text-emerald-900">Job Completed</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             {(() => {
               const signedInvoice = attachments.find((a) => a.kind === "invoice_signed");
               if (signedInvoice) {
@@ -261,6 +262,8 @@ export default function JobDetailPage() {
               Edit & Regenerate
             </Link>
           </div>
+
+          <PhotosSection attachments={attachments} />
         </div>
       )}
 
@@ -630,6 +633,50 @@ function CustomerCard({
         {customer?.address_line1 ? <div className="flex items-start gap-3"><MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" /><div className="text-sm font-medium text-slate-800"><div>{String(customer.address_line1)}{customer.address_line2 ? <span className="text-slate-500"> &middot; {String(customer.address_line2)}</span> : null}</div><div className="text-xs text-slate-500 font-normal">{customer.city ? `${String(customer.city)}` : ""}{customer.state ? `, ${String(customer.state)}` : ""}{customer.zip ? ` ${String(customer.zip)}` : ""}</div></div></div> : null}
         {customer?.phone_primary ? <div className="flex items-start gap-3"><Phone className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" /><a href={`tel:${String(customer.phone_primary)}`} className="text-sm font-medium text-blue-600 hover:underline">{String(customer.phone_primary)}</a></div> : null}
         {customer?.email ? <div className="flex items-start gap-3"><Mail className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" /><a href={`mailto:${String(customer.email)}`} className="text-sm font-medium text-blue-600 hover:underline">{String(customer.email)}</a></div> : null}
+      </div>
+    </div>
+  );
+}
+
+function PhotosSection({ attachments }: { attachments: Record<string, unknown>[] }) {
+  const photos = attachments.filter((a) => String(a.kind || "").startsWith("photo"));
+  if (photos.length === 0) return null;
+
+  return (
+    <div className="mt-5 pt-5 border-t border-emerald-200">
+      <div className="flex items-center gap-2 mb-3">
+        <Camera className="h-4 w-4 text-emerald-700" />
+        <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+          Install Photos ({photos.length})
+        </h3>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+        {photos.map((p) => {
+          const path = String(p.storage_path);
+          const src = `/api/pdf/download?bucket=photos&path=${encodeURIComponent(path)}`;
+          const filename = String(p.original_filename || path.split("/").pop() || "photo.jpg");
+          return (
+            <a
+              key={String(p.id)}
+              href={src}
+              download={filename}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative aspect-square overflow-hidden rounded-xl border border-emerald-200 bg-white hover:border-emerald-400 transition-all"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt={filename}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                <FileDown className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </a>
+          );
+        })}
       </div>
     </div>
   );
