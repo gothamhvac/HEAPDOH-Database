@@ -15,10 +15,18 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/ocr": [
       "./public/tessdata/eng.traineddata.gz",
-      "./node_modules/tesseract.js/**",
-      "./node_modules/tesseract.js-core/**",
-      "./node_modules/.pnpm/tesseract.js@*/**",
-      "./node_modules/.pnpm/tesseract.js-core@*/**",
+
+      // tesseract.js source + worker scripts (pnpm-virtual-store path)
+      "./node_modules/.pnpm/tesseract.js@*/node_modules/tesseract.js/src/**",
+      "./node_modules/.pnpm/tesseract.js@*/node_modules/tesseract.js/package.json",
+
+      // tesseract.js-core: ship ONLY the LSTM variants since we run with
+      // oem=1 (LSTM_ONLY). Skipping the legacy + combined variants keeps
+      // the function under Vercel's 250 MB unzipped cap.
+      "./node_modules/.pnpm/tesseract.js-core@*/node_modules/tesseract.js-core/tesseract-core-lstm.*",
+      "./node_modules/.pnpm/tesseract.js-core@*/node_modules/tesseract.js-core/tesseract-core-simd-lstm.*",
+      "./node_modules/.pnpm/tesseract.js-core@*/node_modules/tesseract.js-core/index.js",
+      "./node_modules/.pnpm/tesseract.js-core@*/node_modules/tesseract.js-core/package.json",
     ],
   },
 };
