@@ -161,21 +161,27 @@ async function generateDohPdf(
     }
   } catch {}
 
-  // Vendor block — DOH forms have no pre-printed vendor info, so pull from the
-  // company chosen during invoice entry. Falls back to legacy hardcoded values
-  // for jobs created before companies were added.
+  // Vendor block (top-right of the form): only Name + Technician are
+  // pre-printed fields, so that's all we write here.
   const company = (job.company as Record<string, unknown> | null) || null;
   const vendorName = (company?.name as string) || "";
-  const vendorPhone = (company?.phone as string) || (customer.phone_primary as string) || "";
-  const vendorCounty = (company?.county as string) || (customer.city as string) || "";
 
   console.log("DOH vendor:", vendorName, "tech:", techName);
   setText("Vendor Name", vendorName);
-  setText("Phone", vendorPhone);
-  setText("County", vendorCounty);
   setText("Vendor Technician", techName);
   setText("Installation Technician", techName);
   setText("Technician Name", techName);
+
+  // Consumer block: the AcroForm field NAMES on the DOH blank are misleading.
+  // The field internally called "County" sits on the row whose printed label
+  // is "Address", and "Phone" sits in the consumer row, not vendor. Write the
+  // consumer street + apt and consumer phone to those fields.
+  const street = (customer.address_line1 as string) || "";
+  const unit = (customer.address_line2 as string) || "";
+  const consumerAddress = unit ? `${street} ${unit}`.trim() : street;
+  setText("County", consumerAddress);
+  setText("Phone", (customer.phone_primary as string) || "");
+
   // Consumer print name (next to consumer signature at bottom)
   setText("Consumer Name", customer.full_name as string || "");
 
