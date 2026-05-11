@@ -81,7 +81,14 @@ export async function POST(request: NextRequest) {
       ? new Date(job.installed_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })
       : new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
 
-    const acTypeLabel = system.ac_type ? ` (${system.ac_type})` : "";
+    // Per-company invoice text overrides. Falls back to the legacy AC-type
+    // suffix and the hardcoded DOH installation materials when the company
+    // hasn't set a custom value.
+    const overrides = (((job.company as Record<string, unknown> | null) || {}).invoice_overrides as Record<string, string> | null) || {};
+    const acTypeKey = (system.ac_type as string) || "";
+
+    const defaultModelSuffix = system.ac_type ? ` (${system.ac_type})` : "";
+    const acTypeLabel = (overrides[`model_suffix_${acTypeKey}`] || defaultModelSuffix);
 
     console.log("PDF Overlay —", programCode, "Job:", job_id);
     console.log("Customer:", customer.full_name, customer.city);
@@ -192,11 +199,18 @@ async function generateDohPdf(
   setText("BTUs", system.btu_input ? String(system.btu_input) : "");
   setText("Cooling Room Square Footage", system.sqft ? String(system.sqft) : "");
 
-  // Installation materials based on AC type
+  // Installation materials. Per-company override beats the program defaults.
   const acType = system.ac_type as string || "";
+  const dohOverrides = ((company?.invoice_overrides as Record<string, string> | null) || {});
+  const overrideMaterials = dohOverrides[`doh_materials_${acType}`];
   let materials = "";
-  if (acType === "window") materials = "Bracket, screws";
-  else if (acType === "wall") materials = "Liner, foam insulation, screws";
+  if (overrideMaterials !== undefined) {
+    materials = overrideMaterials;
+  } else if (acType === "window") {
+    materials = "Bracket, screws";
+  } else if (acType === "wall") {
+    materials = "Liner, foam insulation, screws";
+  }
   setText("Installation materials needed", materials);
 
   // Install date

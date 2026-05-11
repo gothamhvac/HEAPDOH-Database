@@ -6,6 +6,15 @@ import { ArrowLeft, Plus, Loader2, Building2, Pencil, Trash2, Check } from "luci
 import Link from "next/link";
 import { useState } from "react";
 
+interface InvoiceOverrides {
+  model_suffix_window?: string;
+  model_suffix_wall?: string;
+  model_suffix_portable?: string;
+  doh_materials_window?: string;
+  doh_materials_wall?: string;
+  doh_materials_portable?: string;
+}
+
 interface Company {
   id: string;
   name: string;
@@ -19,6 +28,7 @@ interface Company {
   county?: string;
   license_number?: string;
   notes?: string;
+  invoice_overrides?: InvoiceOverrides;
 }
 
 function Field({
@@ -71,6 +81,15 @@ function CompanyForm({
   const [licenseNumber, setLicenseNumber] = useState(initial?.license_number || "");
   const [notes, setNotes] = useState(initial?.notes || "");
 
+  const ov = initial?.invoice_overrides || {};
+  const [modelSuffixWindow, setModelSuffixWindow] = useState(ov.model_suffix_window || "");
+  const [modelSuffixWall, setModelSuffixWall] = useState(ov.model_suffix_wall || "");
+  const [modelSuffixPortable, setModelSuffixPortable] = useState(ov.model_suffix_portable || "");
+  const [dohMatWindow, setDohMatWindow] = useState(ov.doh_materials_window || "");
+  const [dohMatWall, setDohMatWall] = useState(ov.doh_materials_wall || "");
+  const [dohMatPortable, setDohMatPortable] = useState(ov.doh_materials_portable || "");
+  const [showOverrides, setShowOverrides] = useState(false);
+
   return (
     <div className="rounded-2xl border-2 border-blue-200 bg-white p-5 mb-4">
       <h2 className="text-sm font-bold text-slate-900 mb-4">
@@ -108,10 +127,51 @@ function CompanyForm({
           />
         </div>
 
+        <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowOverrides((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left text-xs font-bold text-slate-700 hover:bg-slate-100"
+          >
+            <span>Invoice text overrides (per company)</span>
+            <span className="text-slate-400">{showOverrides ? "Hide" : "Show"}</span>
+          </button>
+          {showOverrides && (
+            <div className="border-t border-slate-200 p-4 space-y-4 bg-white">
+              <p className="text-xs text-slate-500">
+                Leave blank to use the defaults. These differentiate invoices for this company on the
+                rendered PDF. Suffix is appended to the model number (e.g. <code>{` (Window AC)`}</code>).
+              </p>
+
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Model suffix by AC type</p>
+                <Field label="Window" value={modelSuffixWindow} onChange={setModelSuffixWindow} placeholder=" (window)" />
+                <Field label="Wall" value={modelSuffixWall} onChange={setModelSuffixWall} placeholder=" (wall)" />
+                <Field label="Portable" value={modelSuffixPortable} onChange={setModelSuffixPortable} placeholder=" (portable)" />
+              </div>
+
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">DOH installation materials</p>
+                <Field label="Window install" value={dohMatWindow} onChange={setDohMatWindow} placeholder="Bracket, screws" />
+                <Field label="Wall install" value={dohMatWall} onChange={setDohMatWall} placeholder="Liner, foam insulation, screws" />
+                <Field label="Portable install" value={dohMatPortable} onChange={setDohMatPortable} placeholder="" />
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-3">
           <Button onClick={onCancel} variant="outline" className="flex-1 rounded-xl font-bold">Cancel</Button>
           <Button
-            onClick={() =>
+            onClick={() => {
+              const overrides: InvoiceOverrides = {};
+              if (modelSuffixWindow) overrides.model_suffix_window = modelSuffixWindow;
+              if (modelSuffixWall) overrides.model_suffix_wall = modelSuffixWall;
+              if (modelSuffixPortable) overrides.model_suffix_portable = modelSuffixPortable;
+              if (dohMatWindow) overrides.doh_materials_window = dohMatWindow;
+              if (dohMatWall) overrides.doh_materials_wall = dohMatWall;
+              if (dohMatPortable) overrides.doh_materials_portable = dohMatPortable;
+
               onSave({
                 name,
                 phone: phone || null,
@@ -124,8 +184,9 @@ function CompanyForm({
                 county: county || null,
                 license_number: licenseNumber || null,
                 notes: notes || null,
-              })
-            }
+                invoice_overrides: overrides,
+              });
+            }}
             disabled={saving || !name}
             className="flex-1 rounded-xl font-bold"
           >

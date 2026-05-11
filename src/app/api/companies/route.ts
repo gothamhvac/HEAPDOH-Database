@@ -13,6 +13,7 @@ const FIELDS = [
   "county",
   "license_number",
   "notes",
+  "invoice_overrides",
 ] as const;
 
 export async function GET() {
@@ -44,7 +45,12 @@ export async function POST(request: NextRequest) {
 
     const insertData: Record<string, unknown> = { org_id: orgId };
     for (const f of FIELDS) {
-      insertData[f] = body[f] || null;
+      // invoice_overrides is NOT NULL with a {} default — never pass null.
+      if (f === "invoice_overrides") {
+        insertData[f] = body[f] || {};
+      } else {
+        insertData[f] = body[f] || null;
+      }
     }
     insertData.name = body.name;
 
