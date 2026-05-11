@@ -109,6 +109,13 @@ export default function CompletePage() {
   const programCode = String(((job?.program as Record<string, unknown>) || {}).code || "");
   const isDoh = programCode === "DOH";
 
+  // Existing customer signature — when re-editing a completed job we let
+  // the user keep the original signature instead of forcing a new one.
+  const existingCustomerSig = ((job?.signatures as Record<string, unknown>[]) || []).find(
+    (s) => s.signer_role === "customer",
+  );
+  const [keepExistingSig, setKeepExistingSig] = useState(true);
+
   // Pre-fill from existing data
   useEffect(() => {
     if (existingSystem.ac_model_id) setAcModelId(String(existingSystem.ac_model_id));
@@ -168,14 +175,18 @@ export default function CompletePage() {
   const [signatureData, setSignatureData] = useState<string | null>(null);
 
   async function handleComplete() {
-    // Grab signature data BEFORE changing step (which unmounts the canvas)
-    const sigRef = customerSigRef.current;
-    if (!sigRef || sigRef.isEmpty()) {
-      setError("Customer signature is required");
-      return;
+    // Decide whether to capture a new signature or keep the one on file.
+    const reuseSig = !!existingCustomerSig && keepExistingSig;
+    let sigData: string | null = null;
+    if (!reuseSig) {
+      const sigRef = customerSigRef.current;
+      if (!sigRef || sigRef.isEmpty()) {
+        setError("Customer signature is required");
+        return;
+      }
+      sigData = sigRef.toDataURL();
+      setSignatureData(sigData);
     }
-    const sigData = sigRef.toDataURL();
-    setSignatureData(sigData);
 
     setSaving(true);
     setError("");
@@ -222,17 +233,19 @@ export default function CompletePage() {
         }),
       });
 
-      // Save customer signature
-      await fetch("/api/signatures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          job_id: id,
-          signer_name: signerName || String(customer.full_name || "Customer"),
-          signer_role: "customer",
-          image_data: sigData,
-        }),
-      });
+      // Save customer signature — skip when reusing the one already on file.
+      if (sigData) {
+        await fetch("/api/signatures", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            job_id: id,
+            signer_name: signerName || String(customer.full_name || "Customer"),
+            signer_role: "customer",
+            image_data: sigData,
+          }),
+        });
+      }
 
       // Save tech signature from their profile
       if (techId) {
@@ -651,7 +664,9 @@ export default function CompletePage() {
           </h1>
         </div>
         <p className="text-slate-500 mb-6">
-          Have the customer sign below to confirm the installation.
+          {existingCustomerSig && keepExistingSig
+            ? "We'll reuse the signature already on file when regenerating the invoice."
+            : "Have the customer sign below to confirm the installation."}
         </p>
 
         {error && (
@@ -660,35 +675,74 @@ export default function CompletePage() {
           </div>
         )}
 
-        <div className="mb-4">
-          <label className="text-xs font-bold text-slate-500 block mb-1.5">Customer Name</label>
-          <input
-            value={signerName || String(customer.full_name || "")}
-            onChange={(e) => setSignerName(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          />
-        </div>
-
-        <div className="rounded-2xl border-2 border-slate-200 bg-white p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <PenTool className="h-4 w-4 text-slate-500" />
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sign Here</span>
+        {existingCustomerSig && keepExistingSig ? (
+          <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+              <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                Signature on file
+              </span>
+            </div>
+            <div className="border border-emerald-200 rounded-xl overflow-hidden bg-white p-3 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/pdf/download?bucket=signatures&path=${encodeURIComponent(String(existingCustomerSig.image_path))}`}
+                alt="Existing customer signature"
+                className="max-h-32 w-auto"
+              />
             </div>
             <button
-              onClick={() => customerSigRef.current?.clear()}
-              className="text-xs font-bold text-blue-600 hover:text-blue-700"
+              type="button"
+              onClick={() => setKeepExistingSig(false)}
+              className="mt-3 text-xs font-bold text-emerald-700 hover:text-emerald-900 underline"
             >
-              Clear
+              Replace with a new signature
             </button>
           </div>
-          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-            <SignaturePad ref={customerSigRef} height={220} />
-          </div>
-          <p className="text-xs text-slate-400 mt-2 text-center">
-            I confirm the services above were completed.
-          </p>
-        </div>
+        ) : (
+          <>
+            <div className="mb-4">
+              <label className="text-xs font-bold text-slate-500 block mb-1.5">Customer Name</label>
+              <input
+                value={signerName || String(customer.full_name || "")}
+                onChange={(e) => setSignerName(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+            </div>
+
+            <div className="rounded-2xl border-2 border-slate-200 bg-white p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <PenTool className="h-4 w-4 text-slate-500" />
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sign Here</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  {existingCustomerSig && (
+                    <button
+                      type="button"
+                      onClick={() => setKeepExistingSig(true)}
+                      className="text-xs font-bold text-slate-500 hover:text-slate-700"
+                    >
+                      Keep existing
+                    </button>
+                  )}
+                  <button
+                    onClick={() => customerSigRef.current?.clear()}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                <SignaturePad ref={customerSigRef} height={220} />
+              </div>
+              <p className="text-xs text-slate-400 mt-2 text-center">
+                I confirm the services above were completed.
+              </p>
+            </div>
+          </>
+        )}
 
         <Button
           onClick={handleComplete}

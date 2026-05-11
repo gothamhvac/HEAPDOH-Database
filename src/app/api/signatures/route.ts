@@ -36,7 +36,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No signature data" }, { status: 400 });
     }
 
-    // Save signature record
+    // Replace any prior signature for this (job_id, signer_role). We want
+    // exactly one signature per role per job — re-completing or editing a
+    // job shouldn't pile up duplicate rows that the PDF overlay would then
+    // draw on top of each other.
+    await admin.from("signatures").delete().eq("job_id", job_id).eq("signer_role", signer_role);
+
     const { data: sig, error: sigErr } = await admin
       .from("signatures")
       .insert({
