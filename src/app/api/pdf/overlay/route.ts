@@ -90,17 +90,36 @@ export async function POST(request: NextRequest) {
     const defaultModelSuffix = system.ac_type ? ` (${system.ac_type})` : "";
     const acTypeLabel = (overrides[`model_suffix_${acTypeKey}`] || defaultModelSuffix);
 
+    // BTU display: "full" prints 8000, "k" prints 8k. Default = full.
+    const btuFormat = overrides.btu_format || "full";
+    const btuDisplay = system.btu_input
+      ? btuFormat === "k"
+        ? `${Math.round(Number(system.btu_input) / 1000)}k`
+        : String(system.btu_input)
+      : "";
+
     console.log("PDF Overlay —", programCode, "Job:", job_id);
     console.log("Customer:", customer.full_name, customer.city);
     console.log("System:", system.make, system.model, system.btu_input);
 
+    // Pick the font for drawn text. Limited to pdf-lib's StandardFonts
+    // so we can ship without bundling custom font files.
+    const ALLOWED_FONTS = new Set([
+      "Helvetica", "HelveticaBold",
+      "TimesRoman", "TimesRomanBold",
+      "Courier", "CourierBold",
+    ]);
+    const fontKey = (overrides.font_family && ALLOWED_FONTS.has(overrides.font_family))
+      ? overrides.font_family
+      : "Helvetica";
+
     // ─── DOH: AcroForm fields ───
     if (programCode === "DOH") {
-      return await generateDohPdf(admin, job, customer, system, techName, laborCost, partsCost, totalCost, installDate, acTypeLabel, job_id);
+      return await generateDohPdf(admin, job, customer, system, techName, laborCost, partsCost, totalCost, installDate, acTypeLabel, btuDisplay, fontKey, job_id);
     }
 
     // ─── HEAP: Coordinate overlay ───
-    return await generateHeapPdf(admin, job, customer, system, techName, laborCost, partsCost, totalCost, installDate, acTypeLabel, job_id);
+    return await generateHeapPdf(admin, job, customer, system, techName, laborCost, partsCost, totalCost, installDate, acTypeLabel, btuDisplay, fontKey, job_id);
   } catch (err) {
     console.error("PDF overlay error:", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "PDF generation failed" }, { status: 500 });
@@ -119,6 +138,8 @@ async function generateDohPdf(
   totalCost: string,
   installDate: string,
   acTypeLabel: string,
+  btuDisplay: string,
+  fontKey: string,
   jobId: string,
 ) {
   // Load blank DOH template
@@ -196,7 +217,7 @@ async function generateDohPdf(
   const modelStr = `${system.make || ""} ${system.model || ""}`.trim();
   setText("Brand & Model", modelStr ? modelStr + acTypeLabel : "");
   setText("Serial #", system.serial_number as string || "");
-  setText("BTUs", system.btu_input ? String(system.btu_input) : "");
+  setText("BTUs", btuDisplay);
   setText("Cooling Room Square Footage", system.sqft ? String(system.sqft) : "");
 
   // Installation materials. Per-company override beats the program defaults.
@@ -241,7 +262,7 @@ async function generateDohPdf(
   setCheck("Check Box21", true);  // instruction manual
 
   // Signatures — embed as images on the page
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const font = await pdf.embedFont(StandardFonts[fontKey as keyof typeof StandardFonts] || StandardFonts.Helvetica);
   const signatures = (job.signatures as Record<string, unknown>[]) || [];
 
   // Load DOH template field map ONCE up front so we can log its state.
@@ -313,6 +334,8 @@ async function generateHeapPdf(
   totalCost: string,
   installDate: string,
   acTypeLabel: string,
+  btuDisplay: string,
+  fontKey: string,
   jobId: string,
 ) {
   // Get the active template
@@ -341,7 +364,7 @@ async function generateHeapPdf(
 
   const originalBytes = new Uint8Array(await fileData.arrayBuffer());
   const pdf = await PDFDocument.load(originalBytes);
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const font = await pdf.embedFont(StandardFonts[fontKey as keyof typeof StandardFonts] || StandardFonts.Helvetica);
   const fieldMap = (template as Record<string, unknown>).field_map as FieldMapping[];
 
   // Build values
@@ -354,7 +377,7 @@ async function generateHeapPdf(
   values.set("phone_number", customer.phone_primary as string || "");
   values.set("model_number", system.model ? `${system.model}${acTypeLabel}` : "");
   values.set("serial__", system.serial_number as string || "");
-  values.set("btu_unit", system.btu_input ? String(system.btu_input) : "");
+  values.set("btu_unit", btuDisplay);
   values.set("sqft", system.sqft ? String(system.sqft) : "");
   values.set("labor", laborCost);
   values.set("parts", partsCost);

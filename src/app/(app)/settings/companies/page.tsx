@@ -13,6 +13,8 @@ interface InvoiceOverrides {
   doh_materials_window?: string;
   doh_materials_wall?: string;
   doh_materials_portable?: string;
+  font_family?: string;
+  btu_format?: string;
 }
 
 interface Company {
@@ -88,6 +90,8 @@ function CompanyForm({
   const [dohMatWindow, setDohMatWindow] = useState(ov.doh_materials_window || "");
   const [dohMatWall, setDohMatWall] = useState(ov.doh_materials_wall || "");
   const [dohMatPortable, setDohMatPortable] = useState(ov.doh_materials_portable || "");
+  const [fontFamily, setFontFamily] = useState(ov.font_family || "");
+  const [btuFormat, setBtuFormat] = useState(ov.btu_format || "");
   const [showOverrides, setShowOverrides] = useState(false);
 
   return (
@@ -144,6 +148,38 @@ function CompanyForm({
               </p>
 
               <div className="space-y-3">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Display</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 block mb-1">Font</label>
+                    <select
+                      value={fontFamily}
+                      onChange={(e) => setFontFamily(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    >
+                      <option value="">Helvetica (default)</option>
+                      <option value="HelveticaBold">Helvetica Bold</option>
+                      <option value="TimesRoman">Times Roman</option>
+                      <option value="TimesRomanBold">Times Roman Bold</option>
+                      <option value="Courier">Courier</option>
+                      <option value="CourierBold">Courier Bold</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 block mb-1">BTU format</label>
+                    <select
+                      value={btuFormat}
+                      onChange={(e) => setBtuFormat(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    >
+                      <option value="">8000 (full)</option>
+                      <option value="k">8k (compact)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2 border-t border-slate-100">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Model suffix by AC type</p>
                 <Field label="Window" value={modelSuffixWindow} onChange={setModelSuffixWindow} placeholder=" (window)" />
                 <Field label="Wall" value={modelSuffixWall} onChange={setModelSuffixWall} placeholder=" (wall)" />
@@ -171,6 +207,8 @@ function CompanyForm({
               if (dohMatWindow) overrides.doh_materials_window = dohMatWindow;
               if (dohMatWall) overrides.doh_materials_wall = dohMatWall;
               if (dohMatPortable) overrides.doh_materials_portable = dohMatPortable;
+              if (fontFamily) overrides.font_family = fontFamily;
+              if (btuFormat) overrides.btu_format = btuFormat;
 
               onSave({
                 name,
