@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { fetchJobs } from "@/lib/api";
-import { PlusCircle, Phone, MapPin, ChevronRight, Building2 } from "lucide-react";
+import { PlusCircle, Phone, MapPin, ChevronRight, Building2, Tag, Calendar, X } from "lucide-react";
 import { useState } from "react";
 
 const COLUMNS = [
@@ -69,6 +69,17 @@ interface Company {
 export default function JobsPage() {
   const [view, setView] = useState<"board" | "list">("board");
   const [companyFilter, setCompanyFilter] = useState<string>("");
+  const [programFilter, setProgramFilter] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+
+  const hasActiveFilters = !!(companyFilter || programFilter || dateFrom || dateTo);
+  function clearFilters() {
+    setCompanyFilter("");
+    setProgramFilter("");
+    setDateFrom("");
+    setDateTo("");
+  }
 
   const { data: companiesData } = useQuery({
     queryKey: ["companies"],
@@ -81,8 +92,14 @@ export default function JobsPage() {
   const companies: Company[] = companiesData || [];
 
   const { data: jobs, isLoading } = useQuery({
-    queryKey: ["jobs", "all", companyFilter],
-    queryFn: () => fetchJobs(undefined, companyFilter || undefined),
+    queryKey: ["jobs", "all", companyFilter, programFilter, dateFrom, dateTo],
+    queryFn: () =>
+      fetchJobs({
+        companyId: companyFilter || undefined,
+        program: programFilter || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+      }),
   });
 
   const allJobs: Record<string, unknown>[] = jobs || [];
@@ -120,6 +137,49 @@ export default function JobsPage() {
               </select>
               <ChevronRight className="h-3 w-3 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
             </div>
+          )}
+
+          <div className="relative">
+            <Tag className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <select
+              value={programFilter}
+              onChange={(e) => setProgramFilter(e.target.value)}
+              className="appearance-none rounded-xl border border-slate-200 bg-white pl-8 pr-8 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            >
+              <option value="">All programs</option>
+              <option value="HEAP">HEAP</option>
+              <option value="DOH">DOH</option>
+            </select>
+            <ChevronRight className="h-3 w-3 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+          </div>
+
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1.5">
+            <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              aria-label="From date"
+              className="w-[120px] text-xs font-bold text-slate-700 outline-none bg-transparent"
+            />
+            <span className="text-slate-300 text-xs">–</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              aria-label="To date"
+              className="w-[120px] text-xs font-bold text-slate-700 outline-none bg-transparent"
+            />
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear
+            </button>
           )}
           <div className="flex bg-slate-100 rounded-xl p-0.5">
             <button

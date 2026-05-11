@@ -7,6 +7,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get("status");
     const companyFilter = searchParams.get("company_id");
+    const programFilter = searchParams.get("program"); // e.g. "HEAP" | "DOH"
+    const dateFrom = searchParams.get("date_from");    // YYYY-MM-DD, inclusive
+    const dateTo = searchParams.get("date_to");        // YYYY-MM-DD, inclusive
+
+    // Resolve program code → id so we can filter the jobs table without a
+    // foreign-table filter (Supabase quirks).
+    let programId: string | null = null;
+    if (programFilter) {
+      const { data: prog } = await admin
+        .from("programs")
+        .select("id")
+        .eq("code", programFilter)
+        .single();
+      programId = prog?.id ?? "__no_match__";
+    }
 
     let query = admin
       .from("jobs")
@@ -23,6 +38,15 @@ export async function GET(request: NextRequest) {
       } else {
         query = query.eq("company_id", companyFilter);
       }
+    }
+    if (programId) {
+      query = query.eq("program_id", programId);
+    }
+    if (dateFrom) {
+      query = query.gte("scheduled_at", `${dateFrom}T00:00:00Z`);
+    }
+    if (dateTo) {
+      query = query.lte("scheduled_at", `${dateTo}T23:59:59Z`);
     }
 
     const { data: jobs, error } = await query;

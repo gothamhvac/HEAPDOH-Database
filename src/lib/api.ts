@@ -1,13 +1,29 @@
 // Client-side API helpers — all data goes through server API routes (bypasses RLS)
 
-export async function fetchJobs(statusFilter?: string[], companyId?: string) {
+export interface JobsFilters {
+  status?: string[];
+  companyId?: string;
+  program?: string;   // "HEAP" | "DOH"
+  dateFrom?: string;  // YYYY-MM-DD
+  dateTo?: string;    // YYYY-MM-DD
+}
+
+export async function fetchJobs(
+  statusFilter?: string[] | JobsFilters,
+  companyId?: string,
+) {
+  // Back-compat: positional (statusFilter, companyId) OR a single filters object.
+  const f: JobsFilters = Array.isArray(statusFilter) || statusFilter === undefined
+    ? { status: statusFilter as string[] | undefined, companyId }
+    : (statusFilter as JobsFilters);
+
   const params = new URLSearchParams();
-  if (statusFilter && statusFilter.length > 0) {
-    params.set("status", statusFilter.join(","));
-  }
-  if (companyId) {
-    params.set("company_id", companyId);
-  }
+  if (f.status && f.status.length > 0) params.set("status", f.status.join(","));
+  if (f.companyId) params.set("company_id", f.companyId);
+  if (f.program) params.set("program", f.program);
+  if (f.dateFrom) params.set("date_from", f.dateFrom);
+  if (f.dateTo) params.set("date_to", f.dateTo);
+
   const res = await fetch(`/api/jobs/list?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to fetch jobs");
   const data = await res.json();
