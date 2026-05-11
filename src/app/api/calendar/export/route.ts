@@ -63,9 +63,9 @@ export async function GET(request: NextRequest) {
 
       const invoiceNum = (job.invoice_number as string) || (job.id as string).slice(0, 8);
       entries.push({
-        company: safeFolderName(companyName),
+        company: safeFolderName(`${companyName} — ${date}`),
         program: safeFolderName(programCode),
-        filename: `${safeFolderName(customerName)} — ${invoiceNum}.pdf`,
+        filename: `${date} — ${safeFolderName(customerName)} — ${invoiceNum}.pdf`,
         storagePath: String(signed.storage_path),
       });
     }
