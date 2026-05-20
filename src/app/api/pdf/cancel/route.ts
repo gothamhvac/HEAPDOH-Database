@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Load job
     const { data: job, error: jobErr } = await admin
       .from("jobs")
-      .select(`*, customer:customers(*), program:programs(*), attachments:attachments(*)`)
+      .select(`*, customer:customers(*), program:programs(*), company:companies(*), attachments:attachments(*)`)
       .eq("id", job_id)
       .single();
 
@@ -65,6 +65,8 @@ export async function POST(request: NextRequest) {
 
     const originalBytes = new Uint8Array(await fileData.arrayBuffer());
     const customer = job.customer || {};
+    const companyOverrides = (((job.company as Record<string, unknown> | null) || {}).invoice_overrides as Record<string, string> | null) || {};
+    const checkMarkStyle: "x" | "check" = companyOverrides.check_mark_style === "check" ? "check" : "x";
 
     // Load PDF
     const pdf = await PDFDocument.load(originalBytes);
@@ -96,13 +98,24 @@ export async function POST(request: NextRequest) {
       if (f.kind === "checkbox") {
         const shouldCheck = checkboxValues.get(f.key);
         if (shouldCheck) {
-          page.drawText("X", {
-            x: f.x + 1,
-            y: f.y + 1,
-            size: (f.fontSize || 12) - 2,
-            font,
-            color: rgb(0, 0, 0),
-          });
+          if (checkMarkStyle === "check") {
+            const x0 = f.x + 2;
+            const y0 = f.y + f.height * 0.45;
+            const x1 = f.x + f.width * 0.4;
+            const y1 = f.y + 2;
+            const x2 = f.x + f.width - 1;
+            const y2 = f.y + f.height - 1;
+            page.drawLine({ start: { x: x0, y: y0 }, end: { x: x1, y: y1 }, thickness: 1.4, color: rgb(0, 0, 0) });
+            page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: 1.4, color: rgb(0, 0, 0) });
+          } else {
+            page.drawText("X", {
+              x: f.x + 1,
+              y: f.y + 1,
+              size: (f.fontSize || 12) - 2,
+              font,
+              color: rgb(0, 0, 0),
+            });
+          }
         }
         continue;
       }

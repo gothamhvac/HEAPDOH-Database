@@ -12,6 +12,7 @@ const AC_TYPES = [
   { value: "portable", label: "Portable" },
   { value: "window", label: "Window" },
   { value: "wall", label: "Wall Unit" },
+  { value: "fan", label: "Fan" },
 ];
 
 const ROOMS = [

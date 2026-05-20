@@ -113,13 +113,17 @@ export async function POST(request: NextRequest) {
       ? overrides.font_family
       : "Helvetica";
 
+    // Per-company check-mark style. "x" = draw the letter X (default),
+    // "check" = draw a ✓ as two short lines (StandardFonts can't render U+2713).
+    const checkMarkStyle: "x" | "check" = overrides.check_mark_style === "check" ? "check" : "x";
+
     // ─── DOH: AcroForm fields ───
     if (programCode === "DOH") {
       return await generateDohPdf(admin, job, customer, system, techName, laborCost, partsCost, totalCost, installDate, acTypeLabel, btuDisplay, fontKey, job_id);
     }
 
     // ─── HEAP: Coordinate overlay ───
-    return await generateHeapPdf(admin, job, customer, system, techName, laborCost, partsCost, totalCost, installDate, acTypeLabel, btuDisplay, fontKey, job_id);
+    return await generateHeapPdf(admin, job, customer, system, techName, laborCost, partsCost, totalCost, installDate, acTypeLabel, btuDisplay, fontKey, checkMarkStyle, job_id);
   } catch (err) {
     console.error("PDF overlay error:", err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "PDF generation failed" }, { status: 500 });
@@ -336,6 +340,7 @@ async function generateHeapPdf(
   acTypeLabel: string,
   btuDisplay: string,
   fontKey: string,
+  checkMarkStyle: "x" | "check",
   jobId: string,
 ) {
   // Get the active template
@@ -388,11 +393,23 @@ async function generateHeapPdf(
   values.set("name_tech", techName);
   values.set("warranty", "One Year");
 
-  // Checkboxes
-  const checkboxValues = new Map<string, boolean>();
-  checkboxValues.set("check_box_1", true);
-  checkboxValues.set("work_not_completed_check_box", false);
-  checkboxValues.set("registration_warranty_checkbox", true);
+  // Checkboxes — every box ticked for a completed HEAP install.
+  // AC-type boxes only tick if the system matches. Cancellation flows
+  // through /api/pdf/cancel and gets a separate set there.
+  const acType = (system.ac_type as string) || "";
+  const checkboxValues = new Map<string, boolean>([
+    ["check_box_1", true],                          // work completed
+    ["work_not_completed_check_box", false],
+    ["ac_type_window", acType === "window"],
+    ["ac_type_portable", acType === "portable"],
+    ["ac_type_fan", acType === "fan"],
+    ["registration_warranty_checkbox", true],       // product registration
+    ["instructed_on_use", true],
+    ["owners_manual", true],
+    ["ac_install_provided", true],
+    ["electrical_system_suitable", true],
+    ["load_capacity_suitable", true],
+  ]);
 
   const writeFields = fieldMap.filter((f) => f.purpose === "write" || f.purpose === "both");
 
@@ -402,7 +419,7 @@ async function generateHeapPdf(
     // Checkboxes
     if (f.kind === "checkbox") {
       if (checkboxValues.get(f.key)) {
-        page.drawText("X", { x: f.x + 1, y: f.y + 1, size: (f.fontSize || 12) - 2, font, color: rgb(0, 0, 0) });
+        drawMark(page, f, checkMarkStyle, font);
       }
       continue;
     }
@@ -434,6 +451,29 @@ async function generateHeapPdf(
   return await savePdf(admin, pdf, jobId, "HEAP");
 }
 
+// Draw a checkbox mark inside the field's bounding box. "x" prints the
+// letter X with the standard font; "check" draws a ✓ as two lines, since
+// pdf-lib StandardFonts use WinAnsi and can't render U+2713.
+function drawMark(
+  page: import("pdf-lib").PDFPage,
+  f: FieldMapping,
+  style: "x" | "check",
+  font: import("pdf-lib").PDFFont,
+) {
+  if (style === "check") {
+    const x0 = f.x + 2;
+    const y0 = f.y + f.height * 0.45;
+    const x1 = f.x + f.width * 0.4;
+    const y1 = f.y + 2;
+    const x2 = f.x + f.width - 1;
+    const y2 = f.y + f.height - 1;
+    page.drawLine({ start: { x: x0, y: y0 }, end: { x: x1, y: y1 }, thickness: 1.4, color: rgb(0, 0, 0) });
+    page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: 1.4, color: rgb(0, 0, 0) });
+    return;
+  }
+  page.drawText("X", { x: f.x + 1, y: f.y + 1, size: (f.fontSize || 12) - 2, font, color: rgb(0, 0, 0) });
+}
+
 // ─── Save PDF and return download URL ───
 async function savePdf(
   admin: ReturnType<typeof import("@supabase/supabase-js").createClient>,
@@ -461,9 +501,57 @@ async function savePdf(
   // Update job
   await (admin as any).from("jobs").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", jobId);
 
+  // Deplete inventory for each installed AC. The unique index on
+  // (job_system_id) where reason='install' silently swallows duplicates,
+  // so re-running the overlay never double-decrements.
+  await recordInstallTransactions(admin, jobId);
+
   const { data: signedUrl } = await admin.storage.from("signed-pdfs").createSignedUrl(signedPath, 3600);
 
   console.log(program, "PDF overlay complete");
 
   return NextResponse.json({ success: true, downloadUrl: signedUrl?.signedUrl });
+}
+
+async function recordInstallTransactions(
+  admin: ReturnType<typeof import("@supabase/supabase-js").createClient>,
+  jobId: string,
+) {
+  const { data: job } = await (admin as any).from("jobs").select("org_id").eq("id", jobId).single();
+  if (!job) return;
+
+  const { data: systems } = await (admin as any)
+    .from("job_systems")
+    .select("id, ac_model_id")
+    .eq("job_id", jobId)
+    .not("ac_model_id", "is", null) as { data: { id: string; ac_model_id: string }[] | null };
+
+  if (!systems || systems.length === 0) return;
+
+  // Skip systems that already produced an install row. PostgREST upsert
+  // can't target a partial unique index cleanly, so we pre-filter ourselves
+  // and let the unique index remain as the last-line safety net.
+  const systemIds = systems.map((s) => s.id);
+  const { data: existing } = await (admin as any)
+    .from("inventory_transactions")
+    .select("job_system_id")
+    .eq("reason", "install")
+    .in("job_system_id", systemIds) as { data: { job_system_id: string }[] | null };
+
+  const seen = new Set((existing || []).map((r) => r.job_system_id));
+  const rows = systems
+    .filter((s) => !seen.has(s.id))
+    .map((s) => ({
+      org_id: (job as { org_id: string }).org_id,
+      ac_model_id: s.ac_model_id,
+      delta: -1,
+      reason: "install",
+      job_id: jobId,
+      job_system_id: s.id,
+    }));
+
+  if (rows.length === 0) return;
+
+  const { error } = await (admin as any).from("inventory_transactions").insert(rows);
+  if (error) console.error("inventory decrement failed:", error.message);
 }

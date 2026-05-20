@@ -14,6 +14,7 @@ import {
   Users,
   Settings,
   FileSpreadsheet,
+  Package,
   LogOut,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const mainNav = [
 
 const secondaryNav = [
   { href: "/running-sheets", label: "Running Sheets", icon: FileSpreadsheet },
+  { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/customers", label: "Customers", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },

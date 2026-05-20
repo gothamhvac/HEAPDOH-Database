@@ -15,6 +15,7 @@ interface InvoiceOverrides {
   doh_materials_portable?: string;
   font_family?: string;
   btu_format?: string;
+  check_mark_style?: string;
 }
 
 interface Company {
@@ -92,6 +93,7 @@ function CompanyForm({
   const [dohMatPortable, setDohMatPortable] = useState(ov.doh_materials_portable || "");
   const [fontFamily, setFontFamily] = useState(ov.font_family || "");
   const [btuFormat, setBtuFormat] = useState(ov.btu_format || "");
+  const [checkMarkStyle, setCheckMarkStyle] = useState(ov.check_mark_style || "");
   const [showOverrides, setShowOverrides] = useState(false);
 
   return (
@@ -177,6 +179,19 @@ function CompanyForm({
                     </select>
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 block mb-1">HEAP checkbox mark</label>
+                    <select
+                      value={checkMarkStyle}
+                      onChange={(e) => setCheckMarkStyle(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    >
+                      <option value="">X (default)</option>
+                      <option value="check">✓ check mark</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-3 pt-2 border-t border-slate-100">
@@ -209,6 +224,7 @@ function CompanyForm({
               if (dohMatPortable) overrides.doh_materials_portable = dohMatPortable;
               if (fontFamily) overrides.font_family = fontFamily;
               if (btuFormat) overrides.btu_format = btuFormat;
+              if (checkMarkStyle) overrides.check_mark_style = checkMarkStyle;
 
               onSave({
                 name,
