@@ -258,6 +258,83 @@
       "y": 195,
       "width": 46,
       "height": 15
+    },
+    {
+      "key": "electrical_system_suitable",
+      "kind": "checkbox",
+      "purpose": "write",
+      "fontSize": 11,
+      "page": 1,
+      "x": 245,
+      "y": 541,
+      "width": 16,
+      "height": 13
+    },
+    {
+      "key": "ac_install_provided",
+      "kind": "checkbox",
+      "purpose": "write",
+      "fontSize": 11,
+      "page": 1,
+      "x": 245,
+      "y": 522,
+      "width": 16,
+      "height": 13
+    },
+    {
+      "key": "ac_type_portable",
+      "kind": "checkbox",
+      "purpose": "write",
+      "fontSize": 11,
+      "page": 1,
+      "x": 245,
+      "y": 503,
+      "width": 16,
+      "height": 13
+    },
+    {
+      "key": "ac_type_fan",
+      "kind": "checkbox",
+      "purpose": "write",
+      "fontSize": 11,
+      "page": 1,
+      "x": 245,
+      "y": 484,
+      "width": 16,
+      "height": 13
+    },
+    {
+      "key": "owners_manual",
+      "kind": "checkbox",
+      "purpose": "write",
+      "fontSize": 11,
+      "page": 1,
+      "x": 245,
+      "y": 464,
+      "width": 16,
+      "height": 13
+    },
+    {
+      "key": "product_registration_provided",
+      "kind": "checkbox",
+      "purpose": "write",
+      "fontSize": 11,
+      "page": 1,
+      "x": 245,
+      "y": 445,
+      "width": 16,
+      "height": 13
+    },
+    {
+      "key": "instructed_on_use",
+      "kind": "checkbox",
+      "purpose": "write",
+      "fontSize": 11,
+      "page": 1,
+      "x": 245,
+      "y": 426,
+      "width": 16,
+      "height": 13
     }
   ]
 }

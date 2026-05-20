@@ -396,19 +396,26 @@ async function generateHeapPdf(
   // Checkboxes — every box ticked for a completed HEAP install.
   // AC-type boxes only tick if the system matches. Cancellation flows
   // through /api/pdf/cancel and gets a separate set there.
+  //
+  // LDSS-5044 quirks: the form has no "window AC" checkbox (window is the
+  // default — portable/fan rows exist only to justify deviations). The
+  // services-row "Product registration/warranty information provided" is a
+  // different box from the bottom "Registration/Warranty completed and
+  // mailed" — both are ticked. "Electrical system and load capacity circuit
+  // suitable" is one combined row, one checkbox.
   const acType = (system.ac_type as string) || "";
   const checkboxValues = new Map<string, boolean>([
-    ["check_box_1", true],                          // work completed
+    ["check_box_1", true],                              // work completed
     ["work_not_completed_check_box", false],
-    ["ac_type_window", acType === "window"],
+    ["ac_type_window", acType === "window"],            // no field on LDSS-5044; harmless
     ["ac_type_portable", acType === "portable"],
     ["ac_type_fan", acType === "fan"],
-    ["registration_warranty_checkbox", true],       // product registration
+    ["registration_warranty_checkbox", true],           // bottom: completed & mailed
+    ["product_registration_provided", true],            // services row
     ["instructed_on_use", true],
     ["owners_manual", true],
     ["ac_install_provided", true],
     ["electrical_system_suitable", true],
-    ["load_capacity_suitable", true],
   ]);
 
   const writeFields = fieldMap.filter((f) => f.purpose === "write" || f.purpose === "both");
