@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { fetchJobs } from "@/lib/api";
-import { PlusCircle, Phone, MapPin, ChevronRight, Building2, Tag, Calendar, X } from "lucide-react";
-import { useState } from "react";
+import { PlusCircle, Phone, MapPin, ChevronRight, Building2, Tag, Calendar, X, Search, DollarSign } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const COLUMNS = [
   {
@@ -72,13 +72,24 @@ export default function JobsPage() {
   const [programFilter, setProgramFilter] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
+  const [paidFilter, setPaidFilter] = useState<"" | "yes" | "no">("");
+  const [searchInput, setSearchInput] = useState<string>("");
+  const [debouncedQ, setDebouncedQ] = useState<string>("");
 
-  const hasActiveFilters = !!(companyFilter || programFilter || dateFrom || dateTo);
+  // Debounce the search input so we don't refetch on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(searchInput.trim()), 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const hasActiveFilters = !!(companyFilter || programFilter || dateFrom || dateTo || paidFilter || debouncedQ);
   function clearFilters() {
     setCompanyFilter("");
     setProgramFilter("");
     setDateFrom("");
     setDateTo("");
+    setPaidFilter("");
+    setSearchInput("");
   }
 
   const { data: companiesData } = useQuery({
@@ -92,13 +103,15 @@ export default function JobsPage() {
   const companies: Company[] = companiesData || [];
 
   const { data: jobs, isLoading } = useQuery({
-    queryKey: ["jobs", "all", companyFilter, programFilter, dateFrom, dateTo],
+    queryKey: ["jobs", "all", companyFilter, programFilter, dateFrom, dateTo, paidFilter, debouncedQ],
     queryFn: () =>
       fetchJobs({
         companyId: companyFilter || undefined,
         program: programFilter || undefined,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
+        paid: paidFilter || undefined,
+        q: debouncedQ || undefined,
       }),
   });
 
@@ -121,6 +134,40 @@ export default function JobsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="relative">
+            <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Name, address, phone, app #…"
+              className="w-56 sm:w-64 rounded-xl border border-slate-200 bg-white pl-8 pr-8 py-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            />
+            {searchInput && (
+              <button
+                onClick={() => setSearchInput("")}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full hover:bg-slate-100 flex items-center justify-center"
+              >
+                <X className="h-3 w-3 text-slate-400" />
+              </button>
+            )}
+          </div>
+
+          <div className="relative">
+            <DollarSign className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <select
+              value={paidFilter}
+              onChange={(e) => setPaidFilter(e.target.value as "" | "yes" | "no")}
+              className="appearance-none rounded-xl border border-slate-200 bg-white pl-8 pr-8 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            >
+              <option value="">All payment</option>
+              <option value="yes">Paid</option>
+              <option value="no">Unpaid</option>
+            </select>
+            <ChevronRight className="h-3 w-3 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+          </div>
+
           {companies.length > 0 && (
             <div className="relative">
               <Building2 className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -326,11 +373,18 @@ function JobCard({ job }: { job: Record<string, unknown> }) {
     >
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-sm font-bold text-slate-900 truncate">{name}</span>
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ml-2 ${
-          (program.code as string) === "HEAP" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"
-        }`}>
-          {program.code as string}
-        </span>
+        <div className="flex items-center gap-1 shrink-0 ml-2">
+          {job.paid_at ? (
+            <span title={`Paid ${new Date(job.paid_at as string).toLocaleDateString()}`} className="inline-flex items-center h-4 w-4 rounded bg-emerald-100 text-emerald-700">
+              <DollarSign className="h-3 w-3 m-auto" />
+            </span>
+          ) : null}
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+            (program.code as string) === "HEAP" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"
+          }`}>
+            {program.code as string}
+          </span>
+        </div>
       </div>
       <div className="space-y-0.5 text-[11px] text-slate-500">
         {company.name ? (

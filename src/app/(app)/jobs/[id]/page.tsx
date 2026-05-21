@@ -27,6 +27,7 @@ import {
   FileDown,
   Camera,
   Building2,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -95,6 +96,14 @@ export default function JobDetailPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [savingCancel, setSavingCancel] = useState(false);
   const [cancelDownloadUrl, setCancelDownloadUrl] = useState("");
+
+  // Payment state — populated when "Mark as paid" or "Edit" is clicked.
+  const [editingPayment, setEditingPayment] = useState(false);
+  const [paymentDate, setPaymentDate] = useState("");
+  const [checkNumber, setCheckNumber] = useState("");
+  const [checkAmount, setCheckAmount] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [savingPayment, setSavingPayment] = useState(false);
 
   if (isLoading) {
     return (
@@ -175,6 +184,47 @@ export default function JobDetailPage() {
       setShowCancelForm(false);
     } finally {
       setSavingCancel(false);
+    }
+  }
+
+  function openPaymentEditor() {
+    const today = new Date().toISOString().slice(0, 10);
+    setPaymentDate(job?.paid_at ? String(job.paid_at).slice(0, 10) : today);
+    setCheckNumber(String(job?.check_number || ""));
+    setCheckAmount(job?.check_amount != null ? String(job.check_amount) : "");
+    setPaymentNotes(String(job?.payment_notes || ""));
+    setEditingPayment(true);
+  }
+
+  async function savePayment() {
+    if (!paymentDate) return;
+    setSavingPayment(true);
+    try {
+      const amt = checkAmount.trim() ? parseFloat(checkAmount) : null;
+      await updateJob(id, {
+        paid_at: new Date(`${paymentDate}T12:00:00Z`).toISOString(),
+        check_number: checkNumber.trim() || null,
+        check_amount: amt != null && Number.isFinite(amt) ? amt : null,
+        payment_notes: paymentNotes.trim() || null,
+      });
+      queryClient.invalidateQueries({ queryKey: ["job", id] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      setEditingPayment(false);
+    } finally {
+      setSavingPayment(false);
+    }
+  }
+
+  async function unmarkPaid() {
+    if (!confirm("Remove payment record for this job?")) return;
+    setSavingPayment(true);
+    try {
+      await updateJob(id, { paid_at: null, check_number: null, check_amount: null, payment_notes: null });
+      queryClient.invalidateQueries({ queryKey: ["job", id] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      setEditingPayment(false);
+    } finally {
+      setSavingPayment(false);
     }
   }
 
@@ -290,6 +340,125 @@ export default function JobDetailPage() {
           </div>
 
           <PhotosSection attachments={attachments} />
+        </div>
+      )}
+
+      {/* ─── PAYMENT (completed/submitted jobs) ─── */}
+      {(job.status === "completed" || job.status === "submitted") && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${job.paid_at ? "bg-emerald-100" : "bg-slate-100"}`}>
+                <DollarSign className={`h-4 w-4 ${job.paid_at ? "text-emerald-600" : "text-slate-500"}`} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900">Payment</p>
+                <p className="text-[11px] text-slate-500">
+                  {job.paid_at ? "Check received" : "Not yet received"}
+                </p>
+              </div>
+            </div>
+            {!editingPayment && (
+              <div className="flex gap-2">
+                <Button
+                  onClick={openPaymentEditor}
+                  variant="outline"
+                  className="rounded-xl h-8 text-xs font-bold"
+                >
+                  {job.paid_at ? "Edit" : "Mark as paid"}
+                </Button>
+                {job.paid_at ? (
+                  <Button
+                    onClick={unmarkPaid}
+                    variant="outline"
+                    disabled={savingPayment}
+                    className="rounded-xl h-8 text-xs font-bold text-red-600 hover:bg-red-50"
+                  >
+                    Unmark
+                  </Button>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          {job.paid_at && !editingPayment && (
+            <div className="text-xs text-slate-600 space-y-0.5 pl-10">
+              <p>
+                <span className="font-bold text-slate-500">Paid:</span>{" "}
+                {new Date(job.paid_at as string).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </p>
+              {job.check_number ? (
+                <p><span className="font-bold text-slate-500">Check #:</span> {String(job.check_number)}</p>
+              ) : null}
+              {job.check_amount != null ? (
+                <p><span className="font-bold text-slate-500">Amount:</span> ${Number(job.check_amount).toFixed(2)}</p>
+              ) : null}
+              {job.payment_notes ? (
+                <p><span className="font-bold text-slate-500">Notes:</span> {String(job.payment_notes)}</p>
+              ) : null}
+            </div>
+          )}
+
+          {editingPayment && (
+            <div className="space-y-3 pt-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Date received</label>
+                  <input
+                    type="date"
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Amount $</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={checkAmount}
+                    onChange={(e) => setCheckAmount(e.target.value)}
+                    placeholder="800.00"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Check #</label>
+                <input
+                  value={checkNumber}
+                  onChange={(e) => setCheckNumber(e.target.value)}
+                  placeholder="e.g. 1234"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Notes (optional)</label>
+                <input
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="e.g. via SSD batch payment"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setEditingPayment(false)}
+                  variant="outline"
+                  className="flex-1 rounded-xl font-bold"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={savePayment}
+                  disabled={savingPayment || !paymentDate}
+                  className="flex-1 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {savingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

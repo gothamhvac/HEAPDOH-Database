@@ -6,6 +6,8 @@ export interface JobsFilters {
   program?: string;   // "HEAP" | "DOH"
   dateFrom?: string;  // YYYY-MM-DD
   dateTo?: string;    // YYYY-MM-DD
+  q?: string;         // free-text search across invoice_number + customer fields
+  paid?: "yes" | "no";
 }
 
 export async function fetchJobs(
@@ -23,6 +25,8 @@ export async function fetchJobs(
   if (f.program) params.set("program", f.program);
   if (f.dateFrom) params.set("date_from", f.dateFrom);
   if (f.dateTo) params.set("date_to", f.dateTo);
+  if (f.q) params.set("q", f.q);
+  if (f.paid) params.set("paid", f.paid);
 
   const res = await fetch(`/api/jobs/list?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to fetch jobs");
