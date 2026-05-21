@@ -104,6 +104,7 @@ export default function JobDetailPage() {
   const [checkAmount, setCheckAmount] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -198,6 +199,7 @@ export default function JobDetailPage() {
 
   async function savePayment() {
     if (!paymentDate) return;
+    setPaymentError(null);
     setSavingPayment(true);
     try {
       const amt = checkAmount.trim() ? parseFloat(checkAmount) : null;
@@ -210,6 +212,8 @@ export default function JobDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["job", id] });
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       setEditingPayment(false);
+    } catch (e) {
+      setPaymentError(e instanceof Error ? e.message : String(e));
     } finally {
       setSavingPayment(false);
     }
@@ -217,12 +221,15 @@ export default function JobDetailPage() {
 
   async function unmarkPaid() {
     if (!confirm("Remove payment record for this job?")) return;
+    setPaymentError(null);
     setSavingPayment(true);
     try {
       await updateJob(id, { paid_at: null, check_number: null, check_amount: null, payment_notes: null });
       queryClient.invalidateQueries({ queryKey: ["job", id] });
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       setEditingPayment(false);
+    } catch (e) {
+      setPaymentError(e instanceof Error ? e.message : String(e));
     } finally {
       setSavingPayment(false);
     }
@@ -441,9 +448,17 @@ export default function JobDetailPage() {
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
+              {paymentError && (
+                <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700 font-medium">
+                  Save failed: {paymentError}
+                  {paymentError.toLowerCase().includes("paid_at") || paymentError.toLowerCase().includes("column") ? (
+                    <p className="mt-1 font-normal">The payment migration hasn&apos;t been applied to the database yet. Paste the migration SQL into the Supabase SQL Editor and run it.</p>
+                  ) : null}
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button
-                  onClick={() => setEditingPayment(false)}
+                  onClick={() => { setEditingPayment(false); setPaymentError(null); }}
                   variant="outline"
                   className="flex-1 rounded-xl font-bold"
                 >

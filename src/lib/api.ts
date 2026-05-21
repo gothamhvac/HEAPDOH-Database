@@ -47,7 +47,10 @@ export async function updateJob(id: string, updates: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
   });
-  if (!res.ok) throw new Error("Failed to update job");
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Failed to update job (HTTP ${res.status})`);
+  }
   const data = await res.json();
   return data.job;
 }
