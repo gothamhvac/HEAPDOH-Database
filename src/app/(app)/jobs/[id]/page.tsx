@@ -248,7 +248,7 @@ export default function JobDetailPage() {
       </Link>
 
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-5">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           {customerName || "New HEAP Job"}
         </h1>
@@ -262,6 +262,41 @@ export default function JobDetailPage() {
           {job.invoice_number ? (
             <span className="text-xs text-slate-400 font-medium">#{String(job.invoice_number)}</span>
           ) : null}
+        </div>
+      </div>
+
+      {/* Calling company — which line to dial out from */}
+      <div className={`rounded-2xl border p-4 mb-5 ${company?.name ? "border-slate-200 bg-white" : "border-dashed border-slate-300 bg-slate-50"}`}>
+        <div className="flex items-center gap-3">
+          <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${company?.name ? "bg-indigo-100" : "bg-slate-100"}`}>
+            <Building2 className={`h-5 w-5 ${company?.name ? "text-indigo-600" : "text-slate-400"}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Call from</p>
+            {company?.name ? (
+              <>
+                <p className="text-sm font-bold text-slate-900 truncate">{String(company.name)}</p>
+                {company.phone ? (
+                  <a
+                    href={`tel:${String(company.phone).replace(/[^\d+]/g, "")}`}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                  >
+                    <Phone className="h-3 w-3" />
+                    {String(company.phone)}
+                  </a>
+                ) : (
+                  <p className="text-[11px] text-slate-400">No phone on file</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-bold text-slate-500">No company assigned</p>
+                <Link href={`/jobs/${id}/schedule`} className="text-[11px] font-bold text-blue-600 hover:underline">
+                  Assign on schedule →
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
