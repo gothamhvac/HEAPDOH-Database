@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Calendar, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { PdfPreview } from "@/components/PdfPreview";
 
 const AC_TYPES = [
   { value: "portable", label: "Portable" },
@@ -169,6 +170,21 @@ export default function SchedulePage() {
       <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-6">
         Schedule Install
       </h1>
+
+      {(() => {
+        const attachments = (job?.attachments as Record<string, unknown>[] | undefined) || [];
+        const original = attachments.find((a) => a.kind === "invoice_original");
+        if (!original?.storage_path) return null;
+        return (
+          <div className="mb-5">
+            <PdfPreview
+              path={String(original.storage_path)}
+              label="Uploaded HEAP Invoice"
+              height={420}
+            />
+          </div>
+        );
+      })()}
 
       {error && (
         <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700 mb-5 font-medium">

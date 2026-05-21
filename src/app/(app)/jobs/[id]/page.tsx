@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJob, updateJob } from "@/lib/api";
 import { extractApartment } from "@/lib/address-utils";
 import { Button } from "@/components/ui/button";
+import { PdfPreview } from "@/components/PdfPreview";
 import {
   ArrowLeft,
   Phone,
@@ -287,6 +288,17 @@ export default function JobDetailPage() {
           queryClient.invalidateQueries({ queryKey: ["jobs"] });
         }}
       />
+
+      {/* Original uploaded invoice — visible at every stage once uploaded */}
+      {invoiceAttachment?.storage_path ? (
+        <div className="mb-5">
+          <PdfPreview
+            path={String(invoiceAttachment.storage_path)}
+            label="Uploaded HEAP Invoice"
+            height={560}
+          />
+        </div>
+      ) : null}
 
       {/* ─── COMPLETED STATE ─── */}
       {(job.status === "completed" || job.status === "submitted") && (

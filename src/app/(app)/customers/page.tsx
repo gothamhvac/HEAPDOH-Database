@@ -128,11 +128,11 @@ export default function CustomersPage() {
             const completedJobs = c.jobs.filter((j) => j.status === "completed" || j.status === "submitted").length;
             const totalJobs = c.jobs.length;
             return (
-              <div key={c.id} className="rounded-2xl border border-slate-200 bg-white p-4 group">
+              <div key={c.id} className="rounded-2xl border border-slate-200 bg-white p-4 group hover:border-blue-300 transition-colors">
                 <div className="flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
+                  <Link href={`/customers/${c.id}`} className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-sm text-slate-900">{c.full_name}</span>
+                      <span className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{c.full_name}</span>
                       {c.jobs.map((j) => (
                         <span key={j.id} className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                           (j.program as { code: string })?.code === "HEAP" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"
@@ -159,16 +159,15 @@ export default function CustomersPage() {
                       <span className="text-slate-400">{totalJobs} job{totalJobs !== 1 ? "s" : ""}</span>
                       {completedJobs > 0 && <span className="text-emerald-600">{completedJobs} completed</span>}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    {c.jobs.length > 0 && (
-                      <Link
-                        href={`/jobs/${c.jobs[0].id}`}
-                        className="h-8 w-8 rounded-lg hover:bg-blue-50 flex items-center justify-center"
-                      >
-                        <ChevronRight className="h-4 w-4 text-slate-400 hover:text-blue-600" />
-                      </Link>
-                    )}
+                  </Link>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Link
+                      href={`/customers/${c.id}`}
+                      className="h-8 w-8 rounded-lg hover:bg-blue-50 flex items-center justify-center"
+                      title="Open portfolio"
+                    >
+                      <ChevronRight className="h-4 w-4 text-slate-400 hover:text-blue-600" />
+                    </Link>
                     <button
                       onClick={() => { setDeleteId(c.id); setDeleteConfirm(false); }}
                       className="h-8 w-8 rounded-lg hover:bg-red-50 flex items-center justify-center"
