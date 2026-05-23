@@ -107,6 +107,11 @@ export default function JobDetailPage() {
   const [savingPayment, setSavingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
+  // Regenerate state — re-runs the overlay against the latest template
+  // so previously-completed jobs pick up new field_map entries.
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenError, setRegenError] = useState<string | null>(null);
+
   if (isLoading) {
     return (
       <div className="p-5 lg:p-8 max-w-2xl mx-auto">
@@ -217,6 +222,30 @@ export default function JobDetailPage() {
       setPaymentError(e instanceof Error ? e.message : String(e));
     } finally {
       setSavingPayment(false);
+    }
+  }
+
+  async function regenerateInvoice() {
+    setRegenError(null);
+    setRegenerating(true);
+    try {
+      const res = await fetch("/api/pdf/overlay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: id }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed (HTTP ${res.status})`);
+      }
+      const data = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["job", id] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      if (data.downloadUrl) window.open(data.downloadUrl, "_blank");
+    } catch (e) {
+      setRegenError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRegenerating(false);
     }
   }
 
@@ -384,6 +413,15 @@ export default function JobDetailPage() {
               }
               return null;
             })()}
+            <button
+              onClick={regenerateInvoice}
+              disabled={regenerating}
+              title="Re-render the invoice against the current template — useful after a template update"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {regenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              Regenerate
+            </button>
             <Link
               href={`/jobs/${id}/complete`}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
@@ -392,6 +430,12 @@ export default function JobDetailPage() {
               Edit & Regenerate
             </Link>
           </div>
+
+          {regenError && (
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700 font-medium mt-3">
+              {regenError}
+            </div>
+          )}
 
           <PhotosSection attachments={attachments} />
         </div>
